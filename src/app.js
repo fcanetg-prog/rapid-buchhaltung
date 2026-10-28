@@ -151,6 +151,7 @@
       soll: String(b.soll == null ? '' : b.soll), haben: String(b.haben == null ? '' : b.haben), betrag: b.betrag, pos: C.isNum(b.pos) ? b.pos : i + 1, mod: b.mod || 0,
       vorschlag: !!b.vorschlag, sicher: !!b.sicher, bankText: b.bankText || '', bankSchluessel: b.bankSchluessel || '', bankDatum: b.bankDatum || null, bankNr: Number.isFinite(b.bankNr) ? b.bankNr : null,
       // Aufgeteilte Bankbewegung (z. B. Sammelzahlung): Teile verweisen auf den Hauptteil, der das Bank-Total kennt.
+      ...(b.eroeffnung ? { eroeffnung: true } : {}),   // Eröffnungsbuchung aus «Aus Vorjahr eröffnen»
       ...(b.teilVon ? { teilVon: String(b.teilVon) } : {}), ...(C.isNum(b.bankTotal) ? { bankTotal: b.bankTotal } : {}),
     }));
     out.bankZeilen = {};

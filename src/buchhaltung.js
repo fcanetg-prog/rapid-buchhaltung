@@ -113,8 +113,60 @@
         ${BZ_()[bzKey(jahr())] ? `<button class="btn ${S.abgl ? 'on' : ''}" data-bh="abgl" title="Zeigt für die letzten Bankbewegungen, welcher Buchung sie zugeordnet sind">Abgleich ${S.abgl ? 'ausblenden' : 'zeigen'}</button>` : ''}
         <button class="btn" data-bh="pdf">Dossier als PDF</button>
       </div>
+      ${eroeffnungHinweis()}
       ${abgleichPanel()}
       ${inhalt}`;
+    }
+
+    /* ---------- Eröffnung aus dem Vorjahr ---------- */
+
+    /** Vortragskonto: 2970 Gewinnvortrag, sonst das Passivkonto für Vortrag, Eigenkapital oder Vermögen im Kontenplan. */
+    const vortragVon = (zeilen) => (zeilen.some((z) => z.konto === '2970') ? '2970'
+      : ((zeilen.find((z) => z.konto && String(z.bklasse) === '2' && /vortrag|eigenkapital|reinverm|vermögen|kapital/i.test(z.text)) || {}).konto || null));
+    const buchungenVorjahr = () => DB().filter((b) => b.jahr === jahr() - 1 && !b.vorschlag);
+
+    /**
+     * Stimmen die Eröffnungsbuchungen noch mit den Schlusssaldi des Vorjahres überein? Nur für Jahre, die aus dem
+     * Vorjahr eröffnet wurden (Eröffnungsbuchungen vorhanden); ein importiertes Jahr ohne Vorjahr bleibt unberührt.
+     */
+    function eroeffnungStand() {
+      const vor = KP()[jahr() - 1];
+      if (!vor || !plan()) return null;
+      const vortrag = vortragVon(vor.zeilen);
+      if (!vortrag) return null;
+      const vorhandene = buchungen().filter((b) => b.eroeffnung || (/^Eröffnung:/.test(b.text) && (b.soll === vortrag || b.haben === vortrag)));
+      if (!vorhandene.length) return null;
+      return Object.assign(L.eroeffnungAbgleich(vor.zeilen, buchungenVorjahr(), vorhandene, jahr(), vortrag, von()), { vortrag, vor });
+    }
+
+    function eroeffnungHinweis() {
+      const st = eroeffnungStand();
+      if (!st || !st.anzahl) return '';
+      const konten = [...st.aendern.map((x) => x.e), ...st.neu].map((e) => (e.soll === st.vortrag ? e.haben : e.soll)).concat(st.weg.map((b) => (b.soll === st.vortrag ? b.haben : b.soll)));
+      return `<div class="bh-eroe" role="status"><span><b>Die Schlusssaldi ${jahr() - 1} haben sich seit der Eröffnung geändert.</b>
+        ${st.anzahl === 1 ? 'Eine Eröffnungsbuchung stimmt' : `${st.anzahl} Eröffnungsbuchungen stimmen`} nicht mehr (Konto ${[...new Set(konten)].map(esc).join(', ')}).</span>
+        <span class="grow"></span><button class="btn small primary" data-bh="eroeffnung-nach">Eröffnung nachführen</button></div>`;
+    }
+
+    /** Passt die Eröffnungsbuchungen an die aktuellen Schlusssaldi des Vorjahres an. */
+    function eroeffnungNachfuehren() {
+      const st = eroeffnungStand();
+      if (!st || !st.anzahl) { toast('Die Eröffnung stimmt bereits mit den Schlusssaldi des Vorjahres überein.'); return; }
+      const vorherB = JSON.parse(JSON.stringify(DB())), vorherP = JSON.parse(JSON.stringify(plan()));
+      for (const { b, e } of st.aendern) Object.assign(b, { soll: e.soll, haben: e.haben, betrag: e.betrag, text: e.text, eroeffnung: true });
+      const weg = new Set(st.weg.map((b) => b.id));
+      state.data.buchungen = DB().filter((b) => !weg.has(b.id));
+      const beleg = ((buchungen().find((b) => b.eroeffnung) || {}).beleg) || '1';
+      let pos = DB().reduce((m, b) => Math.max(m, b.pos || 0), 0);
+      for (const e of st.neu) {
+        // Konto, das erst nach der Eröffnung im Vorjahr hinzugekommen ist: auch hier anlegen
+        const k = e.soll === st.vortrag ? e.haben : e.soll;
+        if (!konten().some((z) => z.konto === k)) { const z = st.vor.zeilen.find((x) => x.konto === k); if (z) einfuegen(KP()[jahr()].zeilen, Object.assign({}, z)); }
+        DB().push(Object.assign(e, { id: uid('b'), beleg, pos: ++pos, eroeffnung: true }));
+      }
+      persist(); render();
+      const teile = [st.aendern.length && `${st.aendern.length} angepasst`, st.neu.length && `${st.neu.length} neu`, st.weg.length && `${st.weg.length} entfernt`].filter(Boolean).join(', ');
+      toast(`Eröffnung ${jahr()} nachgeführt: ${teile}`, { actionLabel: 'Rückgängig', action: () => { state.data.buchungen = vorherB; KP()[jahr()].zeilen = vorherP; persist(); render(); } });
     }
 
     function viewLeer() {
@@ -125,7 +177,7 @@
           ${vor ? `<button class="btn primary" data-bh="eroeffnen">Aus ${jahr() - 1} eröffnen</button>` : ''}
           <button class="btn" data-action="import">Kontenplan oder Buchhaltung importieren</button>
         </div>
-        ${vor ? `<p class="hint">«Eröffnen» übernimmt den Kontenplan von ${jahr() - 1} und bucht per ${fmtDate(von())} die Schlusssaldi aller Bilanzkonten gegen das Vortragskonto (2970 oder das Passivkonto für Vortrag, Eigenkapital oder Vermögen). Der Jahreserfolg ${jahr() - 1} landet damit im Vortrag.</p>` : ''}
+        ${vor ? `<p class="hint">«Eröffnen» übernimmt den Kontenplan von ${jahr() - 1} und bucht per ${fmtDate(von())} die Schlusssaldi aller Bilanzkonten gegen das Vortragskonto (2970 oder das Passivkonto für Vortrag, Eigenkapital oder Vermögen). Der Jahreserfolg ${jahr() - 1} landet damit im Vortrag. Buchst du danach noch im Jahr ${jahr() - 1}, bietet die App an, die Eröffnung nachzuführen.</p>` : ''}
       </div>`;
     }
 
@@ -573,16 +625,15 @@
         const p = KP()[jahr()];
         p.zeilen = p.zeilen.filter((z) => z.konto !== S.kEdit.alt);
         S.kEdit = null; persist(); render(); toast('Konto gelöscht');
-      } else if (a === 'eroeffnen') {
+      } else if (a === 'eroeffnung-nach') eroeffnungNachfuehren();
+      else if (a === 'eroeffnen') {
         const vor = KP()[jahr() - 1];
-        // 2970 Gewinnvortrag, sonst das Passivkonto für Vortrag, Eigenkapital oder Vermögen im Kontenplan.
-        const vortrag = vor.zeilen.some((z) => z.konto === '2970') ? '2970'
-          : ((vor.zeilen.find((z) => z.konto && String(z.bklasse) === '2' && /vortrag|eigenkapital|reinverm|vermögen|kapital/i.test(z.text)) || {}).konto || null);
+        const vortrag = vortragVon(vor.zeilen);
         if (!vortrag) { toast('Im Kontenplan fehlt ein Passivkonto für Vortrag, Eigenkapital oder Vermögen.', { fehler: true }); return; }
         KP()[jahr()] = { zeilen: JSON.parse(JSON.stringify(vor.zeilen)), mod: 0 };
         const er = L.eroeffnung(vor.zeilen, DB().filter((b) => b.jahr === jahr() - 1 && !b.vorschlag), jahr(), vortrag, von());
         let pos = DB().reduce((m, b) => Math.max(m, b.pos || 0), 0);
-        for (const b of er) DB().push(Object.assign(b, { id: uid('b'), pos: ++pos }));
+        for (const b of er) DB().push(Object.assign(b, { id: uid('b'), pos: ++pos, eroeffnung: true }));
         persist(); render(); toast(`Buchhaltung ${jahr()} eröffnet mit ${er.length} Eröffnungsbuchungen`);
       }
     });

@@ -125,6 +125,27 @@
     return out;
   }
 
+  /**
+   * Vergleicht die vorhandenen Eröffnungsbuchungen eines Jahres mit den aktuellen Schlusssaldi des Vorjahres
+   * (z. B. nach späten Buchungen im Vorjahr). Pro Bilanzkonto gibt es eine Eröffnungsbuchung gegen das Vortragskonto.
+   * Liefert, was anzupassen ({ b, e }: vorhandene Buchung b soll wie e aussehen), neu anzulegen und zu entfernen ist.
+   */
+  function eroeffnungAbgleich(zeilenVorjahr, buchungenVorjahr, vorhandene, jahr, vortragKonto, datum) {
+    const ziel = eroeffnung(zeilenVorjahr, buchungenVorjahr, jahr, vortragKonto, datum);
+    const kontoVon = (b) => (b.soll === vortragKonto ? b.haben : b.soll);
+    const nach = new Map(), weg = [];
+    for (const b of vorhandene) { const k = kontoVon(b); if (nach.has(k)) weg.push(b); else nach.set(k, b); }
+    const aendern = [], neu = [];
+    for (const e of ziel) {
+      const k = kontoVon(e), b = nach.get(k);
+      if (!b) { neu.push(e); continue; }
+      nach.delete(k);
+      if (b.soll !== e.soll || b.haben !== e.haben || Math.abs(b.betrag - e.betrag) > 0.004) aendern.push({ b, e });
+    }
+    for (const b of nach.values()) weg.push(b);
+    return { aendern, neu, weg, anzahl: aendern.length + neu.length + weg.length };
+  }
+
   /** Nächste freie Belegnummer: höchste vorkommende Zahl plus eins. */
   function naechsterBeleg(buchungen) {
     let max = 0;
@@ -315,5 +336,5 @@
     return fertig(beste.x.text, beste.x.gegen, konten.size === 1);
   }
 
-  return { round2, sortiert, bankSortiert, bankZeilenMerge, bankPlaetze, saldi, auswertung, totalsummen, kontoauszug, eroeffnung, naechsterBeleg, abschnitte, parseBankCsv, bankKern, bankAbgleich, bankVorschlag };
+  return { round2, sortiert, bankSortiert, bankZeilenMerge, bankPlaetze, saldi, auswertung, totalsummen, kontoauszug, eroeffnung, eroeffnungAbgleich, naechsterBeleg, abschnitte, parseBankCsv, bankKern, bankAbgleich, bankVorschlag };
 });

@@ -25,7 +25,8 @@ Der Kontenplan wird pro Geschäftsjahr als JSON-Datei importiert:
 
     { "typ": "kontenplan", "jahr": 2026, "gjBeginn": "12-01", "kontenplan": [ { "sektion": "", "gruppe": "", "konto": "1010", "text": "Bankkonto GKB", "bklasse": "1", "summe_in": "100" }, … ] }
 
-Optional mit `"buchungen": [ … ]`. Das Folgejahr lässt sich in der App aus dem Vorjahr eröffnen.
+Optional mit `"buchungen": [ … ]`. Das Folgejahr lässt sich in der App aus dem Vorjahr eröffnen; ändern sich danach
+die Schlusssaldi des Vorjahres, bietet die App «Eröffnung nachführen» an.
 
 ## Entwickeln
 

@@ -109,4 +109,20 @@ console.log('Buchhaltung bestanden.');
   console.log('Geschäftsjahr bestanden.');
 }
 
+// Eröffnung nachführen: späte Buchung im Vorjahr ändert Bank und Vortrag; ein Konto kommt neu dazu, eines fällt weg
+{
+  const er = L.eroeffnung(plan, b, 2027, '2970', '2026-12-01').map((x, i) => Object.assign(x, { id: 'e' + i, eroeffnung: true }));
+  assert.strictEqual(L.eroeffnungAbgleich(plan, b, er, 2027, '2970', '2026-12-01').anzahl, 0);
+  const spaet = b.concat([{ id: 'd', datum: '2026-11-20', soll: '6600', haben: '1020', betrag: 500, pos: 4 }]);
+  const x = L.eroeffnungAbgleich(plan, spaet, er, 2027, '2970', '2026-12-01');
+  assert.deepStrictEqual([x.aendern.length, x.neu.length, x.weg.length], [1, 0, 0]);
+  assert.deepStrictEqual([x.aendern[0].b.id, x.aendern[0].e.betrag], ['e0', 20500]);
+  // Kapital 2800 ausgeglichen, dafür Kreditor 2000 offen
+  const plan2 = plan.concat([{ konto: '2000', text: 'Kreditoren', bklasse: '2', summe_in: '28' }]);
+  const anders = spaet.concat([{ id: 'f', datum: '2026-11-21', soll: '2800', haben: '1020', betrag: 20000, pos: 5 }, { id: 'g', datum: '2026-11-22', soll: '6600', haben: '2000', betrag: 70, pos: 6 }]);
+  const y = L.eroeffnungAbgleich(plan2, anders, er, 2027, '2970', '2026-12-01');
+  assert.deepStrictEqual([y.aendern.map((q) => q.e.betrag), y.neu.map((q) => [q.soll, q.haben, q.betrag]), y.weg.map((q) => q.id)], [[500], [['2970', '2000', 70]], ['e1']]);
+  console.log('Eröffnung nachführen bestanden.');
+}
+
 console.log('Alle Prüfungen bestanden.');

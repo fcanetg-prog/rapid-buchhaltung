@@ -1003,3 +1003,7 @@ tr.bu-z:hover .bu-null, .bu-null:focus { opacity: 1; }
 
 /* Geschäftsjahr unter dem Titel */
 .head h1 small.gj { display: block; font-size: 13px; font-weight: 400; letter-spacing: 0; color: var(--muted); margin-top: 2px; }
+
+/* Hinweis: Eröffnung stimmt nicht mehr mit den Schlusssaldi des Vorjahres überein */
+.bh-eroe { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; padding: 9px 12px; font-size: 13px; background: #fbf1de; border: 1px solid #ecd3a4; border-radius: var(--radius); }
+.bh-eroe .grow { flex: 1; }
