@@ -1,0 +1,38 @@
+name: Windows-Installer bauen
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Buchhaltung-Rapid-Openair-Setup
+          path: dist/Buchhaltung-Rapid-Openair-Setup-*.exe
+          if-no-files-found: error
+      - name: Release mit Installer anlegen
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}-${{ github.run_number }}"
+          gh release create "$TAG" dist/Buchhaltung-Rapid-Openair-Setup-*.exe \
+            --title "Buchhaltung Rapid Openair ${VERSION} (Build ${{ github.run_number }})" \
+            --notes "Installer herunterladen und doppelklicken. Die erfassten Daten bleiben bei einem Update erhalten." \
+            --latest
