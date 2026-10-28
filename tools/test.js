@@ -94,4 +94,19 @@ console.log('Buchhaltung bestanden.');
   console.log('GKB-Export bestanden.');
 }
 
+// Geschäftsjahr: Beginn 1. Dezember, benannt nach dem Jahr, in dem es endet
+{
+  const s = { gjBeginn: '12-01' };
+  assert.strictEqual(C.gjVon(s, 2026), '2025-12-01'); assert.strictEqual(C.gjBis(s, 2026), '2026-11-30');
+  assert.strictEqual(C.gjJahr(s, '2025-12-15'), 2026); assert.strictEqual(C.gjJahr(s, '2026-11-30'), 2026); assert.strictEqual(C.gjJahr(s, '2026-12-01'), 2027);
+  assert.ok(C.gjIn(s, 2026, '2025-12-01')); assert.ok(!C.gjIn(s, 2026, '2025-11-30'));
+  assert.strictEqual(C.gjText(s, 2026), '01.12.2025 bis 30.11.2026');
+  const k = { gjBeginn: '01-01' };
+  assert.strictEqual(C.gjVon(k, 2026), '2026-01-01'); assert.strictEqual(C.gjBis(k, 2028), '2028-12-31'); assert.strictEqual(C.gjJahr(k, '2026-12-31'), 2026);
+  assert.strictEqual(C.gjBis({ gjBeginn: '03-01' }, 2028), '2028-02-29');   // Schaltjahr
+  assert.strictEqual(C.gjBeginn({ gjBeginn: 'x' }), '01-01');
+  const e = L.eroeffnung(plan, b, 2027, '2970', C.gjVon(s, 2027)); assert.strictEqual(e[0].datum, '2026-12-01');
+  console.log('Geschäftsjahr bestanden.');
+}
+
 console.log('Alle Prüfungen bestanden.');

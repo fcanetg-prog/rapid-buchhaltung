@@ -18,9 +18,12 @@ Die Daten liegen als eine Datei unter `Dokumente\Buchhaltung Rapid Openair\rapid
 liegt pro Tag eine Kopie, im Unterordner `Dossiers` die als PDF gespeicherten Dossiers.
 In diesem Repository liegen keine Daten.
 
-Der Kontenplan wird pro Jahr als JSON-Datei importiert:
+Das Geschäftsjahr beginnt am 1. Dezember und trägt die Jahreszahl, in der es endet (Geschäftsjahr 2026 =
+01.12.2025 bis 30.11.2026); der Beginn ist unter Einstellungen änderbar.
 
-    { "typ": "kontenplan", "jahr": 2026, "kontenplan": [ { "sektion": "", "gruppe": "", "konto": "1020", "text": "GKB", "bklasse": "1", "summe_in": "100" }, … ] }
+Der Kontenplan wird pro Geschäftsjahr als JSON-Datei importiert:
+
+    { "typ": "kontenplan", "jahr": 2026, "gjBeginn": "12-01", "kontenplan": [ { "sektion": "", "gruppe": "", "konto": "1010", "text": "Bankkonto GKB", "bklasse": "1", "summe_in": "100" }, … ] }
 
 Optional mit `"buchungen": [ … ]`. Das Folgejahr lässt sich in der App aus dem Vorjahr eröffnen.
 

@@ -10,6 +10,8 @@
   const uid = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const pad = (n) => String(n).padStart(2, '0');
 
+  const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
   function todayIso() { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
   function fmtDate(iso) { return iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : ''; }
 
@@ -53,7 +55,7 @@
     fehler: null,
     info: { version: '', dataPath: '' },
     view: 'buchhaltung',
-    year: +heute.slice(0, 4),
+    year: C.gjJahr(C.DEFAULTS, heute),
   };
 
   /* Änderungsstempel: Damit zwei Rechner ihre Stände zusammenführen können, bekommt jede geänderte
@@ -145,7 +147,7 @@
     out.geloescht = Object.assign({}, d.geloescht || {});
     out.settingsMod = d.settingsMod || 0;
     out.buchungen = (d.buchungen || []).filter((b) => b && b.datum && C.isNum(b.betrag)).map((b, i) => ({
-      id: b.id || uid('b'), jahr: +b.jahr || +b.datum.slice(0, 4), datum: b.datum, beleg: String(b.beleg == null ? '' : b.beleg), text: b.text || '',
+      id: b.id || uid('b'), jahr: +b.jahr || C.gjJahr(out.settings, b.datum), datum: b.datum, beleg: String(b.beleg == null ? '' : b.beleg), text: b.text || '',
       soll: String(b.soll == null ? '' : b.soll), haben: String(b.haben == null ? '' : b.haben), betrag: b.betrag, pos: C.isNum(b.pos) ? b.pos : i + 1, mod: b.mod || 0,
       vorschlag: !!b.vorschlag, sicher: !!b.sicher, bankText: b.bankText || '', bankSchluessel: b.bankSchluessel || '', bankDatum: b.bankDatum || null, bankNr: Number.isFinite(b.bankNr) ? b.bankNr : null,
       // Aufgeteilte Bankbewegung (z. B. Sammelzahlung): Teile verweisen auf den Hauptteil, der das Bank-Total kennt.
@@ -169,7 +171,8 @@
 
   function years() {
     // Das nächste Jahr ist immer wählbar, damit sich ein neues Jahr eröffnen lässt.
-    const ys = new Set([+heute.slice(0, 4), +heute.slice(0, 4) + 1, state.year]);
+    const jetzt = C.gjJahr(state.data.settings, heute);
+    const ys = new Set([jetzt, jetzt + 1, state.year]);
     for (const y of Object.keys(state.data.kontenplaene || {})) ys.add(+y);
     for (const b of state.data.buchungen) ys.add(b.jahr);
     return [...ys].sort((a, b) => b - a);
@@ -241,6 +244,9 @@
       <section class="sec"><h2>Allgemein</h2>
         <div class="cols2">
           <div class="fld"><label for="s-firma">Name in Titel und Dossier</label><input id="s-firma" type="text" value="${esc(s.firma || '')}" data-action="setting-text" data-key="firma"><small>Steht oben links, auf dem Dossier als PDF und in dessen Dateinamen.</small></div>
+          <div class="fld"><label for="s-gj">Beginn des Geschäftsjahres</label>
+            <select id="s-gj" data-action="gj-beginn">${MONATE.map((m, i) => { const v = `${pad(i + 1)}-01`; return `<option value="${v}" ${C.gjBeginn(s) === v ? 'selected' : ''}>1. ${m}</option>`; }).join('')}</select>
+            <small>Das Geschäftsjahr ${state.year} dauert vom ${C.gjText(s, state.year)}. Es trägt die Jahreszahl, in der es endet.</small></div>
           <div class="fld"><label for="s-bank">Bankkonto für den E-Banking-Import (${state.year})</label>
             ${plan ? `<select id="s-bank" data-action="bank-konto">${kandidaten.map((z) => `<option value="${esc(z.konto)}" ${z.konto === bank ? 'selected' : ''}>${esc(z.konto)} ${esc(z.text)}</option>`).join('')}</select>
             <small>Gegen dieses Konto werden die Bewegungen aus dem CSV-Export der GKB gebucht.${s.bankKonto ? '' : ' Zurzeit automatisch gewählt.'}</small>`
@@ -279,6 +285,8 @@
       await api.save(state.data, { sicherungErzwingen: true });
       if (neueB.length) state.data.buchungen = state.data.buchungen.filter((b) => b.jahr !== j).concat(neueB.map((b) => Object.assign({}, b, { jahr: j })));
       state.data.kontenplaene[j] = { zeilen: normPlan(d.kontenplan), mod: 0 };
+      if (d.gjBeginn && C.gjBeginn({ gjBeginn: d.gjBeginn }) === d.gjBeginn) state.data.settings.gjBeginn = d.gjBeginn;
+      if (d.firma) state.data.settings.firma = String(d.firma);
       state.data = normalize(state.data);
       await persist();
       state.year = j; state.view = 'buchhaltung'; render();
@@ -331,6 +339,11 @@
     if (!a) return;
     if (a === 'year') { state.year = +el.value; render(); }
     else if (a === 'setting-text') { const v = el.value.trim(); if (v) state.data.settings[el.dataset.key] = v; else delete state.data.settings[el.dataset.key]; persist(); render(); }
+    else if (a === 'gj-beginn') {
+      // Bestehende Buchungen bleiben in ihrem Geschäftsjahr; nur neue Buchungen und Datumsprüfungen folgen dem neuen Beginn.
+      if (state.data.buchungen.length && !confirm('Den Beginn des Geschäftsjahres ändern? Bestehende Buchungen bleiben in ihrem bisherigen Jahr; geprüft wird künftig nach dem neuen Zeitraum.')) { render(); return; }
+      state.data.settings.gjBeginn = el.value; persist(); render(); toast(`Das Geschäftsjahr beginnt neu am ${el.value.slice(3)}.${el.value.slice(0, 2)}.`);
+    }
     else if (a === 'bank-konto') { state.data.settings.bankKonto = el.value; persist(); render(); toast(`Bankbewegungen werden gegen das Konto ${el.value} gebucht`); }
   });
 
@@ -345,7 +358,7 @@
       const r = await api.load();
       if (r.error) state.fehler = r.error;
       if (r.veraltet) { state.fehler = r.veraltet; state.veraltet = true; state.geladen = true; render(); return; }
-      if (r.data) { state.data = normalize(r.data); merkeAbbild(); }
+      if (r.data) { state.data = normalize(r.data); merkeAbbild(); state.year = C.gjJahr(state.data.settings, heute); }
       if (r.eingearbeitet) setTimeout(() => toast('Änderungen von einem anderen Rechner wurden eingearbeitet.'), 400);
       if (api.onChanged) api.onChanged(holeAenderungen);
     } catch (e) {

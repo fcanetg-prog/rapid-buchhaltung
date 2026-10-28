@@ -6,10 +6,27 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const DEFAULTS = { firma: 'Rapid Openair' };
+  // gjBeginn: Beginn des Geschäftsjahres (MM-TT). Das Geschäftsjahr heisst nach dem Kalenderjahr, in dem es endet:
+  // Beginn 12-01 → Geschäftsjahr 2026 = 01.12.2025 bis 30.11.2026. Mit 01-01 gilt das Kalenderjahr.
+  const DEFAULTS = { firma: 'Rapid Openair', gjBeginn: '12-01' };
 
   const round2 = (x) => Math.round(x * 100 + 1e-6) / 100;
   const isNum = (x) => typeof x === 'number' && isFinite(x);
+
+  /* ---------- Geschäftsjahr ---------- */
+
+  const gjBeginn = (s) => (/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test((s && s.gjBeginn) || '') ? s.gjBeginn : '01-01');
+  const isoPlus = (iso, tage) => new Date(Date.parse(iso + 'T00:00:00Z') + tage * 86400000).toISOString().slice(0, 10);
+  /** Erster Tag des Geschäftsjahres j. */
+  function gjVon(s, j) { const b = gjBeginn(s); return b === '01-01' ? `${j}-01-01` : `${j - 1}-${b}`; }
+  /** Letzter Tag des Geschäftsjahres j. */
+  function gjBis(s, j) { return isoPlus(gjVon(s, j + 1), -1); }
+  /** Geschäftsjahr, in das ein Datum fällt. */
+  function gjJahr(s, datum) { const y = +String(datum).slice(0, 4), b = gjBeginn(s); return b !== '01-01' && String(datum).slice(5, 10) >= b ? y + 1 : y; }
+  const gjIn = (s, j, datum) => datum >= gjVon(s, j) && datum <= gjBis(s, j);
+  const dm = (iso) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+  /** «01.12.2025 bis 30.11.2026» */
+  const gjText = (s, j) => `${dm(gjVon(s, j))} bis ${dm(gjBis(s, j))}`;
 
   function emptyData() {
     return { version: 1, settings: Object.assign({}, DEFAULTS), buchungen: [], kontenplaene: {}, bankZeilen: {} };
@@ -77,5 +94,5 @@
     };
   }
 
-  return { DEFAULTS, emptyData, parseAmount, mergeData, round2, isNum };
+  return { DEFAULTS, emptyData, parseAmount, mergeData, round2, isNum, gjBeginn, gjVon, gjBis, gjJahr, gjIn, gjText };
 });

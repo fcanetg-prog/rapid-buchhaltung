@@ -19,6 +19,9 @@
     /* ---------- Daten ---------- */
 
     const jahr = () => state.year;
+    // Geschäftsjahr: erster und letzter Tag, Datum im Geschäftsjahr
+    const von = () => C.gjVon(state.data.settings, jahr()), bis = () => C.gjBis(state.data.settings, jahr());
+    const imJahr = (d) => C.gjIn(state.data.settings, jahr(), d);
     const plan = () => { const p = KP()[jahr()]; return p ? p.zeilen : null; };
     // Vorschläge aus dem Bankabgleich zählen erst, wenn sie bestätigt sind.
     const buchungen = () => DB().filter((b) => b.jahr === jahr() && !b.vorschlag);
@@ -67,7 +70,7 @@
     function neuVorlage() {
       const bs = buchungen();
       const letzte = L.sortiert(bs).pop();
-      return { datum: letzte && letzte.datum > `${jahr()}-01-01` ? (heute.startsWith(String(jahr())) ? heute : letzte.datum) : (heute.startsWith(String(jahr())) ? heute : `${jahr()}-01-01`), beleg: L.naechsterBeleg(bs), text: '', soll: '', haben: '', betrag: '' };
+      return { datum: imJahr(heute) ? heute : letzte && letzte.datum > von() ? letzte.datum : von(), beleg: L.naechsterBeleg(bs), text: '', soll: '', haben: '', betrag: '' };
     }
     function neu() {
       if (!S.neu || S.neuJahr !== jahr()) { S.neu = neuVorlage(); S.neuJahr = jahr(); }
@@ -80,7 +83,7 @@
       const nummern = new Set(konten().map((z) => z.konto));
       const soll = String(f.soll).trim().split(/\s/)[0], haben = String(f.haben).trim().split(/\s/)[0];
       if (!f.datum) return { fehler: 'Das Datum fehlt.', feld: 'datum' };
-      if (!f.datum.startsWith(jahr() + '-')) return { fehler: `Das Datum liegt nicht im Jahr ${jahr()}. Wähle links das passende Jahr.`, feld: 'datum' };
+      if (!imJahr(f.datum)) return { fehler: `Das Datum liegt nicht im Geschäftsjahr ${jahr()} (${C.gjText(state.data.settings, jahr())}). Wähle links das passende Jahr.`, feld: 'datum' };
       if (!String(f.text).trim()) return { fehler: 'Die Beschreibung fehlt.', feld: 'text' };
       if (!nummern.has(soll)) return { fehler: `Das Soll-Konto «${soll}» gibt es im Kontenplan nicht.`, feld: 'soll' };
       if (!nummern.has(haben)) return { fehler: `Das Haben-Konto «${haben}» gibt es im Kontenplan nicht.`, feld: 'haben' };
@@ -99,7 +102,7 @@
       const inhalt = { buchungen: viewBuchungen, konten: viewKonten, abschluss: viewAbschluss, auszug: viewAuszug }[S.tab]();
       return `
       <header class="head">
-        <h1>${TITEL} ${jahr()}</h1>
+        <h1>${TITEL} ${jahr()}<small class="gj">Geschäftsjahr ${C.gjText(state.data.settings, jahr())}</small></h1>
         <div class="bignum"><b class="${gewinn < 0 ? 'neg' : ''}">${chf(gewinn)}</b><span>${gewinn < 0 ? 'Jahresverlust' : 'Jahresgewinn'} bisher</span></div>
       </header>
       <div class="bh-bar">
@@ -116,13 +119,13 @@
 
     function viewLeer() {
       const vor = KP()[jahr() - 1];
-      return `<header class="head"><h1>${TITEL} ${jahr()}</h1></header>
+      return `<header class="head"><h1>${TITEL} ${jahr()}<small class="gj">Geschäftsjahr ${C.gjText(state.data.settings, jahr())}</small></h1></header>
       <div class="sec"><p>Für ${jahr()} gibt es noch keine Buchhaltung. Sobald der Kontenplan geladen ist, kannst du buchen und Bankbewegungen einlesen.</p>
         <div class="row" style="margin-top:12px">
           ${vor ? `<button class="btn primary" data-bh="eroeffnen">Aus ${jahr() - 1} eröffnen</button>` : ''}
           <button class="btn" data-action="import">Kontenplan oder Buchhaltung importieren</button>
         </div>
-        ${vor ? `<p class="hint">«Eröffnen» übernimmt den Kontenplan von ${jahr() - 1} und bucht per 1. Januar die Schlusssaldi aller Bilanzkonten gegen das Vortragskonto (2970 oder das Passivkonto für Vortrag, Eigenkapital oder Vermögen). Der Jahreserfolg ${jahr() - 1} landet damit im Vortrag.</p>` : ''}
+        ${vor ? `<p class="hint">«Eröffnen» übernimmt den Kontenplan von ${jahr() - 1} und bucht per ${fmtDate(von())} die Schlusssaldi aller Bilanzkonten gegen das Vortragskonto (2970 oder das Passivkonto für Vortrag, Eigenkapital oder Vermögen). Der Jahreserfolg ${jahr() - 1} landet damit im Vortrag.</p>` : ''}
       </div>`;
     }
 
@@ -269,8 +272,8 @@
       const p = L.parseBankCsv(r.text);
       if (p.fehler) { toast(p.fehler, { fehler: true }); return; }
       if (!BANK_()) { toast('Im Kontenplan gibt es kein Bankkonto, gegen das die Bewegungen gebucht werden können.', { fehler: true }); return; }
-      const z = p.zeilen.filter((x) => x.datum.startsWith(jahr() + '-'));
-      if (!z.length) { toast(`Die Datei enthält keine Bewegungen im Jahr ${jahr()}. Wähle links das passende Jahr.`, { fehler: true }); return; }
+      const z = p.zeilen.filter((x) => imJahr(x.datum));
+      if (!z.length) { toast(`Die Datei enthält keine Bewegungen im Geschäftsjahr ${jahr()} (${C.gjText(state.data.settings, jahr())}). Wähle links das passende Jahr.`, { fehler: true }); return; }
       const alle = DB().filter((b) => b.jahr === jahr());
       // Bankbewegungen des Jahres merken: Sie bestimmen dauerhaft die Reihenfolge der Buchungen.
       const gemerkt = BZ_()[bzKey(jahr())] || { mod: 0, zeilen: [] };
@@ -414,7 +417,7 @@
         const k = L.kontoauszug(z.konto, bs);
         return `<table class="ka">${kopf(`${z.konto} ${z.text}`, [['Datum'], ['Beleg'], ['Beschreibung'], ['Gegenkto.'], ['Soll CHF', 'r'], ['Haben CHF', 'r'], ['Saldo CHF', 'r']])}
           <tbody>${k.zeilen.map((r) => `<tr><td>${fmtDate(r.datum)}</td><td>${esc(r.beleg)}</td><td>${esc(r.text)}</td><td>${esc(r.gegenkonto)}</td><td class="r">${chf(r.soll)}</td><td class="r">${chf(r.haben)}</td><td class="r">${chf(r.saldo, true)}</td></tr>`).join('')}
-          <tr class="g"><td>${fmtDate(`${jahr()}-12-31`)}</td><td></td><td>Totalsumme Bewegungen</td><td></td><td class="r">${chf(k.soll, true)}</td><td class="r">${chf(k.haben, true)}</td><td class="r">${chf(k.saldo, true)}</td></tr></tbody></table>`;
+          <tr class="g"><td>${fmtDate(bis())}</td><td></td><td>Totalsumme Bewegungen</td><td></td><td class="r">${chf(k.soll, true)}</td><td class="r">${chf(k.haben, true)}</td><td class="r">${chf(k.saldo, true)}</td></tr></tbody></table>`;
       }).join('');
 
       const gewinn = -t.erfolg;
@@ -454,7 +457,7 @@
         table.ka td:nth-child(5), table.ka td:nth-child(6), table.ka td:nth-child(7) { width: 62pt; }
         table.tt tr.g td { padding-bottom: 10pt; }
       </style></head><body>
-        <div class="deck"><h1>${esc(titel)}</h1><p>Buchhaltung, Stand ${fmtDate(heute)}</p>
+        <div class="deck"><h1>${esc(titel)}</h1><p>Buchhaltung, Stand ${fmtDate(heute)}</p><p>Geschäftsjahr ${C.gjText(state.data.settings, jahr())}</p>
           <dl><dt>Total Aktiven</dt><dd>${chf(t.aktiven)}</dd><dt>Ertrag</dt><dd>${chf(-t.ertrag)}</dd><dt>Aufwand</dt><dd>${chf(t.aufwand)}</dd>
           <dt><b>${gewinn < 0 ? 'Jahresverlust' : 'Jahresgewinn'}</b></dt><dd><b>${chf(gewinn)}</b></dd><dt>Buchungen</dt><dd>${bs.length}</dd></dl></div>
         ${abschluss('Bilanz: Aktiven', kompakt(ab.aktiven, a, 1)).replace('class="ab"', 'class="ab erste"')}
@@ -577,7 +580,7 @@
           : ((vor.zeilen.find((z) => z.konto && String(z.bklasse) === '2' && /vortrag|eigenkapital|reinverm|vermögen|kapital/i.test(z.text)) || {}).konto || null);
         if (!vortrag) { toast('Im Kontenplan fehlt ein Passivkonto für Vortrag, Eigenkapital oder Vermögen.', { fehler: true }); return; }
         KP()[jahr()] = { zeilen: JSON.parse(JSON.stringify(vor.zeilen)), mod: 0 };
-        const er = L.eroeffnung(vor.zeilen, DB().filter((b) => b.jahr === jahr() - 1 && !b.vorschlag), jahr(), vortrag);
+        const er = L.eroeffnung(vor.zeilen, DB().filter((b) => b.jahr === jahr() - 1 && !b.vorschlag), jahr(), vortrag, von());
         let pos = DB().reduce((m, b) => Math.max(m, b.pos || 0), 0);
         for (const b of er) DB().push(Object.assign(b, { id: uid('b'), pos: ++pos }));
         persist(); render(); toast(`Buchhaltung ${jahr()} eröffnet mit ${er.length} Eröffnungsbuchungen`);

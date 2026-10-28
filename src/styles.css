@@ -1000,3 +1000,6 @@ i, em, cite, dfn, address, var { font-style: normal; }
 tr.bu-z:hover .bu-null, .bu-null:focus { opacity: 1; }
 .bu-null.an { opacity: 1; color: var(--teal-deep); border-color: var(--teal-deep); background: #e3f1f1; font-weight: 700; }
 .bu-fehlt { display: block; margin-left: auto; color: var(--red); font-size: 12px; font-weight: 600; text-align: right; }
+
+/* Geschäftsjahr unter dem Titel */
+.head h1 small.gj { display: block; font-size: 13px; font-weight: 400; letter-spacing: 0; color: var(--muted); margin-top: 2px; }

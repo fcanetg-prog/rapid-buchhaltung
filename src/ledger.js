@@ -112,7 +112,7 @@
    * Eröffnungsbuchungen für das Folgejahr: jedes Bilanzkonto mit Saldo wird gegen das Vortragskonto eröffnet.
    * Das Vortragskonto erhält damit von selbst seinen alten Saldo plus den Jahreserfolg.
    */
-  function eroeffnung(zeilen, buchungenVorjahr, jahr, vortragKonto) {
+  function eroeffnung(zeilen, buchungenVorjahr, jahr, vortragKonto, datum) {
     const sal = saldi(buchungenVorjahr);
     const out = [];
     let pos = 0;
@@ -120,7 +120,7 @@
       if (!z.konto || z.konto === vortragKonto || (z.bklasse !== '1' && z.bklasse !== '2')) continue;
       const s = sal.has(z.konto) ? sal.get(z.konto).saldo : 0;
       if (!s) continue;
-      out.push({ jahr, datum: `${jahr}-01-01`, beleg: '1', text: `Eröffnung: ${z.text}`, soll: s > 0 ? z.konto : vortragKonto, haben: s > 0 ? vortragKonto : z.konto, betrag: Math.abs(s), pos: ++pos });
+      out.push({ jahr, datum: datum || `${jahr}-01-01`, beleg: '1', text: `Eröffnung: ${z.text}`, soll: s > 0 ? z.konto : vortragKonto, haben: s > 0 ? vortragKonto : z.konto, betrag: Math.abs(s), pos: ++pos });
     }
     return out;
   }
