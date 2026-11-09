@@ -67,6 +67,7 @@
       b: new Map(state.data.buchungen.map((r) => [r.id, ohneMod(r)])),
       k: Object.fromEntries(Object.entries(state.data.kontenplaene).map(([j, pl]) => [j, JSON.stringify([pl.zeilen, pl.von, pl.bis])])),
       z: Object.fromEntries(Object.entries(state.data.bankZeilen || {}).map(([j, bz]) => [j, JSON.stringify(bz.zeilen)])),
+      u: Object.fromEntries(Object.entries(state.data.budgets || {}).map(([j, bu]) => [j, JSON.stringify(bu.posten)])),
       s: JSON.stringify(state.data.settings),
     };
   }
@@ -83,6 +84,7 @@
     if (JSON.stringify(d.settings) !== abbild.s) d.settingsMod = jetzt;
     for (const [j, pl] of Object.entries(d.kontenplaene)) if (JSON.stringify([pl.zeilen, pl.von, pl.bis]) !== abbild.k[j]) pl.mod = jetzt;
     for (const [j, bz] of Object.entries(d.bankZeilen || {})) if (JSON.stringify(bz.zeilen) !== abbild.z[j]) bz.mod = jetzt;
+    for (const [j, bu] of Object.entries(d.budgets || {})) if (JSON.stringify(bu.posten) !== (abbild.u || {})[j]) bu.mod = jetzt;
     merkeAbbild();
   }
 
@@ -154,6 +156,18 @@
       ...(b.eroeffnung ? { eroeffnung: true } : {}),   // Eröffnungsbuchung aus «Aus Vorjahr eröffnen»
       ...(b.teilVon ? { teilVon: String(b.teilVon) } : {}), ...(C.isNum(b.bankTotal) ? { bankTotal: b.bankTotal } : {}),
     }));
+    out.budgets = {};
+    for (const [jahr, bu] of Object.entries(d.budgets || {})) {
+      const posten = {};
+      for (const [konto, p] of Object.entries((bu && bu.posten) || {})) {
+        const q = {};
+        if (p && typeof p.text === 'string' && p.text.trim()) q.text = p.text.trim();
+        if (p && C.isNum(p.intern)) q.intern = p.intern;
+        if (p && C.isNum(p.extern)) q.extern = p.extern;
+        if (Object.keys(q).length) posten[String(konto)] = q;
+      }
+      out.budgets[jahr] = { mod: (bu && bu.mod) || 0, posten };
+    }
     out.bankZeilen = {};
     for (const [jahr, bz] of Object.entries(d.bankZeilen || {})) {
       out.bankZeilen[jahr] = { mod: (bz && bz.mod) || 0, zeilen: ((bz && bz.zeilen) || []).filter((z) => z && z.datum && C.isNum(z.betrag)).map((z, i) => ({ datum: z.datum, text: z.text || '', betrag: z.betrag, saldo: C.isNum(z.saldo) ? z.saldo : null, schluessel: z.schluessel || '', nr: C.isNum(z.nr) ? z.nr : i })) };
@@ -172,6 +186,7 @@
 
   const NAV = [
     ['buchhaltung', 'Buchhaltung'],
+    ['budget', 'Budget'],
     ['einstellungen', 'Einstellungen'],
   ];
 
@@ -180,6 +195,7 @@
     const jetzt = C.gjJahr(state.data.settings, heute);
     const ys = new Set([jetzt, jetzt + 1, state.year]);
     for (const y of Object.keys(state.data.kontenplaene || {})) ys.add(+y);
+    for (const y of Object.keys(state.data.budgets || {})) ys.add(+y);
     for (const b of state.data.buchungen) ys.add(b.jahr);
     return [...ys].sort((a, b) => b - a);
   }
@@ -196,7 +212,7 @@
     if (!state.geladen) { $('#app').innerHTML = '<div class="leer"><p>Daten werden geladen …</p></div>'; return; }
     if (!state.data) { $('#app').innerHTML = viewStart(); return; }
 
-    const views = { buchhaltung: () => BH.view(), einstellungen: viewEinstellungen };
+    const views = { buchhaltung: () => BH.view(), budget: () => BU.view(), einstellungen: viewEinstellungen };
     const firma = String(state.data.settings.firma || '').trim() || 'Rapid Openair';
     $('#app').innerHTML = `
       <nav class="side">
@@ -284,6 +300,21 @@
     if (r.text != null) {
       // Excel-Export aus Banana
       try { d = window.Banana.lesen(r.text); } catch (e) { toast(e.message, { fehler: true }); return; }
+    }
+    if (d.typ === 'budget') {
+      // Budgets einzelner Jahre (intern und extern); andere Jahre bleiben unverändert
+      if (!state.data) { state.data = C.emptyData(); merkeAbbild(); }
+      const jahre = Object.keys(d.budgets || {}).filter((j) => /^\d{4}$/.test(j)).sort();
+      if (!jahre.length) { toast('Die Datei enthält kein Budget.', { fehler: true }); return; }
+      const schon = jahre.filter((j) => state.data.budgets[j] && Object.keys(state.data.budgets[j].posten).length);
+      if (schon.length && !confirm(`Für ${schon.join(', ')} gibt es schon ein Budget. Der Import ersetzt ${schon.length === 1 ? 'es' : 'sie'}. Fortfahren?`)) return;
+      await api.save(state.data, { sicherungErzwingen: true });
+      for (const j of jahre) state.data.budgets[j] = { mod: 0, posten: d.budgets[j].posten || {} };
+      state.data = normalize(state.data);
+      await persist();
+      state.year = +jahre[jahre.length - 1]; state.view = 'budget'; render();
+      toast(`Budget ${jahre.join(', ')} übernommen`);
+      return;
     }
     if (d.typ === 'buchhaltung' || d.typ === 'kontenplan') {
       // Kontenplan eines Geschäftsjahres, allenfalls mit Buchungen
@@ -402,6 +433,7 @@
   setInterval(pruefeUpdate, 6 * 3600 * 1000);
 
   const BH = window.Buchhaltung({ state, C, esc, fmtDate, heute, persist, render, toast, api, uid });
+  const BU = window.Budget({ state, C, esc, fmtDate, heute, persist, render, toast, api });
   window.__app = { state, render, persist };
   start();
 })();

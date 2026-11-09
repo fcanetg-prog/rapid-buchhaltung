@@ -40,7 +40,7 @@
   }
 
   function emptyData() {
-    return { version: 1, settings: Object.assign({}, DEFAULTS), buchungen: [], kontenplaene: {}, bankZeilen: {} };
+    return { version: 1, settings: Object.assign({}, DEFAULTS), buchungen: [], kontenplaene: {}, bankZeilen: {}, budgets: {} };
   }
 
   /** Geldbetrag aus «3'820.00», «3’820», «3820,5». Erlaubt auch einfache Summen wie «3390+430». */
@@ -91,7 +91,7 @@
     const nachJahr = (x, y) => { const o = {}; for (const q of [x || {}, y || {}]) for (const [j, v] of Object.entries(q)) if (!o[j] || (v.mod || 0) > (o[j].mod || 0)) o[j] = v; return o; };
     const buchungen = mergeList(a.buchungen, b.buchungen).sort((x, y) => (x.datum < y.datum ? -1 : x.datum > y.datum ? 1 : (x.pos || 0) - (y.pos || 0)));
     // Teile, die diese Version nicht kennt (aus einer neueren App), unverändert mitnehmen.
-    const bekannt = new Set(['version', 'settings', 'settingsMod', 'geloescht', 'buchungen', 'kontenplaene', 'bankZeilen']);
+    const bekannt = new Set(['version', 'settings', 'settingsMod', 'geloescht', 'buchungen', 'kontenplaene', 'bankZeilen', 'budgets']);
     const fremd = {};
     for (const q of [a, b]) for (const k of Object.keys(q)) if (!bekannt.has(k) && fremd[k] === undefined) fremd[k] = q[k];
     return {
@@ -102,6 +102,7 @@
       geloescht, buchungen,
       kontenplaene: nachJahr(a.kontenplaene, b.kontenplaene),
       bankZeilen: nachJahr(a.bankZeilen, b.bankZeilen),
+      budgets: nachJahr(a.budgets, b.budgets),
     };
   }
 

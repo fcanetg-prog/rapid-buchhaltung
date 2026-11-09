@@ -32,6 +32,13 @@ Alternativ wird der Kontenplan pro Geschäftsjahr als JSON-Datei importiert:
 Optional mit `"buchungen": [ … ]`. Das Folgejahr lässt sich in der App aus dem Vorjahr eröffnen; ändern sich danach
 die Schlusssaldi des Vorjahres, bietet die App «Eröffnung nachführen» an.
 
+## Budget
+
+Reiter «Budget» pro Geschäftsjahr: Posten sind die Konten der Erfolgsrechnung (Bezeichnung frei wählbar).
+**Intern**: Budget des Jahres (editierbar), Ist des laufenden Jahres, Budgets, Ist und Differenzen der bis zu drei
+Vorjahre; Ist-Zahlen kommen aus der Buchhaltung. **Extern**: eigenes Budget für Stiftungen, als PDF (Unterordner
+`Budgets`). Budgets früherer Jahre lassen sich als JSON importieren (`{ "typ": "budget", "budgets": { "2027": { "posten": { "4011": { "text": "Getränke", "intern": 8500, "extern": 11000 } } } } }`).
+
 ## Entwickeln
 
     npm install

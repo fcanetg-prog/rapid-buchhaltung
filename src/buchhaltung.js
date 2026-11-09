@@ -402,8 +402,17 @@
     }
 
     /** Zeilen eines Abschnitts mit Saldo, für die kompakte Darstellung: nur was einen Saldo hat. vz dreht das Vorzeichen. */
+    /**
+     * Bilanz und Erfolgsrechnung kompakt: nur Konten und Gruppen mit Saldo. Zwischentotale, die nur ein einziges
+     * anderes Total weitergeben (z. B. Kurzfristiges Fremdkapital → Fremdkapital, Bruttoergebnis → Betriebliches
+     * Ergebnis → … → Jahresgewinn), fallen weg; es bleibt jeweils das äussere Total.
+     */
     function kompakt(zeilen, a, vz) {
-      return zeilen.filter((z) => (z.konto || z.gruppe) && Math.abs(a.saldoVon(z)) > 0.004 && z.gruppe !== '00')
+      const mit = zeilen.filter((z) => (z.konto || z.gruppe) && Math.abs(a.saldoVon(z)) > 0.004 && z.gruppe !== '00');
+      const gruppen = new Set(mit.filter((z) => z.gruppe).map((z) => z.gruppe));
+      const kinder = (g) => mit.filter((z) => z.summe_in === g);
+      const weg = new Set(mit.filter((z) => z.gruppe && gruppen.has(z.summe_in) && kinder(z.summe_in).length === 1).map((z) => z.gruppe));
+      return mit.filter((z) => !(z.gruppe && weg.has(z.gruppe)))
         .map((z) => ({ nr: z.konto || '', text: z.text, wert: vz * a.saldoVon(z), gruppe: !!z.gruppe, gross: !!z.gruppe && /^(1|2|E\d|10|14|20|24|2A|28|3|5|6)$/.test(z.gruppe) }));
     }
 

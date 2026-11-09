@@ -1007,3 +1007,32 @@ tr.bu-z:hover .bu-null, .bu-null:focus { opacity: 1; }
 /* Hinweis: Eröffnung stimmt nicht mehr mit den Schlusssaldi des Vorjahres überein */
 .bh-eroe { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; padding: 9px 12px; font-size: 13px; background: #fbf1de; border: 1px solid #ecd3a4; border-radius: var(--radius); }
 .bh-eroe .grow { flex: 1; }
+
+/* ---------- Budget ---------- */
+.view-budget .bg-wrap { padding: 6px 0 14px; overflow-x: auto; }
+.view-budget .bg-wrap .hint { margin: 12px 18px 0; }
+.bg-alle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.bg-tab { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.bg-tab th { padding: 8px 7px 6px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.bg-tab td { padding: 1px 7px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+.bg-tab .r { text-align: right; }
+.bg-tab td.k { color: var(--muted); font-size: 12px; width: 44px; }
+.bg-tab td.t { min-width: 330px; width: 40%; }
+.bg-tab input.bg-text { padding: 3px 6px; }
+.bg-tab td.ein { width: 100px; padding-right: 2px; }
+.bg-tab input.bg-betrag { width: 94px; text-align: right; padding: 3px 6px; font-variant-numeric: tabular-nums; border-color: var(--line); background: #fbfdfd; }
+.bg-tab input.bg-betrag:focus, .bg-tab input.bg-text:focus { border-color: var(--teal); background: var(--surface); outline: none; }
+.bg-tab tr.bg-neu td { border-top: 6px solid var(--surface); }
+.bg-tab td.ist[data-bu] { cursor: pointer; }
+.bg-tab td.ist[data-bu]:hover { text-decoration: underline; color: var(--teal-deep); }
+.bg-tab .lauf { background: rgba(var(--teal-rgb), .06); }
+.bg-tab td.neg { color: var(--red); }
+.bg-tab td.pos { color: var(--green); }
+.bg-tab tr.bg-abschnitt td { font-weight: 600; color: var(--teal-deep); font-size: 13.5px; padding: 16px 8px 6px; border-bottom: 1px solid var(--line); }
+.bg-tab tr.bg-total td { font-weight: 600; padding-top: 7px; padding-bottom: 7px; border-top: 1px solid var(--ink); border-bottom: 0; }
+.bg-tab tr.bg-total td:first-child { padding-left: 8px; }
+.bg-tab tr.bg-ueber td { font-size: 14.5px; border-top: 2px solid var(--ink); padding-top: 10px; }
+.bg-tab .bg-int { color: var(--muted); font-size: 12px; }
+.bg-tab .bg-int.hoeher { color: var(--amber); }
+.bg-tab .bg-int.tiefer { color: var(--teal-deep); }
+.bg-ext tr.bg-ohne input.bg-text { color: var(--muted); }

@@ -164,4 +164,12 @@ console.log('Buchhaltung bestanden.');
   console.log('Banana-Import bestanden.');
 }
 
+// Budgets: pro Jahr zusammenführen (jüngere Fassung gewinnt)
+{
+  const M = C.mergeData({ budgets: { 2027: { mod: 2, posten: { 4011: { intern: 8500 } } }, 2026: { mod: 1, posten: {} } } },
+    { budgets: { 2027: { mod: 5, posten: { 4011: { intern: 9000, extern: 11000 } } } } });
+  assert.deepStrictEqual(M.budgets[2027].posten[4011], { intern: 9000, extern: 11000 }); assert.ok(M.budgets[2026]);
+  console.log('Budget bestanden.');
+}
+
 console.log('Alle Prüfungen bestanden.');
