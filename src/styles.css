@@ -1046,7 +1046,9 @@ tr.bu-z:hover .bu-null, .bu-null:focus { opacity: 1; }
 .bg-tab tr.bg-abschnitt td { font-weight: 700; color: var(--teal-deep); font-size: 18px; height: 46px; vertical-align: bottom; padding-bottom: 6px; border-bottom: 2px solid var(--teal-deep); }
 .bg-tab tr.bg-abschnitt.zweiter td { height: 74px; }
 .bg-tab tr.bg-total td { font-weight: 700; font-size: 12.5px; height: 32px; border-top: 2px solid var(--ink); border-bottom: 0; }
-.bg-tab tr.bg-ueber td { font-size: 16px; height: 46px; border-top: 3px double var(--ink); }
+/* Überschuss als eigener Block, klar getrennt von den Einnahmen */
+.bg-tab tr.bg-abstand td { height: 56px; border: 0; background: none; }
+.bg-tab tr.bg-ueber td { font-size: 16px; height: 46px; border-top: 3px double var(--ink); border-bottom: 3px double var(--ink); }
 .bg-tab .bg-int { color: var(--muted); }
 .bg-tab .bg-int.hoeher { color: var(--amber); }
 .bg-tab .bg-int.tiefer { color: var(--teal-deep); }

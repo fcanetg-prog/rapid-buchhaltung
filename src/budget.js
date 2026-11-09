@@ -174,6 +174,7 @@
           <tr class="bg-abschnitt zweiter"><td colspan="${breite}">Einnahmen</td></tr>
           ${abschnitt(z.ertrag, breite, zeile)}
           ${total('Total Einnahmen', z.ertrag, 'ertrag')}
+          <tr class="bg-abstand"><td colspan="${breite}"></td></tr>
           <tr class="bg-total bg-ueber"><td colspan="2">Überschuss</td>${ue}</tr>
         </tbody></table>
         <p class="hint">Tatsächliche Zahlen kommen aus der Buchhaltung des jeweiligen Geschäftsjahres und sind immer aktuell; ein Klick darauf zeigt den Kontoauszug.${hand.length ? ` Die Zahlen für ${hand.join(', ')} sind fix aus dem Excel übernommen.` : ''} Differenz = tatsächlich − Budget. <span class="bg-legende gut">grün</span> besser als budgetiert (weniger ausgegeben oder mehr eingenommen), <span class="bg-legende schlecht">rot</span> schlechter (mehr ausgegeben oder weniger eingenommen).</p>
@@ -196,6 +197,7 @@
         <tbody>
           <tr class="bg-abschnitt"><td colspan="5">Ausgaben</td></tr>${abschnitt(z.aufwand, 5, zeile)}${tot('Total Ausgaben', z.aufwand)}
           <tr class="bg-abschnitt zweiter"><td colspan="5">Einnahmen</td></tr>${abschnitt(z.ertrag, 5, zeile)}${tot('Total Einnahmen', z.ertrag)}
+          <tr class="bg-abstand"><td colspan="5"></td></tr>
           <tr class="bg-total bg-ueber"><td colspan="2">Überschuss</td><td class="r ${ue < 0 ? 'neg' : ''}">${chf(ue)}</td><td class="r bg-int">${chf(ui)}</td><td></td></tr>
         </tbody></table>
         <p class="hint">Das externe Budget ist unabhängig vom internen. Ins PDF kommen nur Posten mit einem Betrag (auch 0); ein leeres Feld lässt den Posten weg. Die Spalten «intern» und «Abweichung» sind nur hier sichtbar, nicht im PDF.</p>
@@ -218,7 +220,8 @@
         tr.abschnitt td { border-bottom: 1.3pt solid #000; }
         tr.abschnitt td { font-weight: bold; }
         tr.total td { font-weight: bold; border-top: 1px solid #000; border-bottom: 0; }
-        tr.ueber td { border-top: 2px solid #000; }
+        tr.ueber td { border-top: 2px solid #000; border-bottom: 2px solid #000; }
+        tr.abstand td { border: 0; background: none; }
         tr { page-break-inside: avoid; }`;
 
     function pdfExtern() {
@@ -241,6 +244,7 @@
         tr.abschnitt td { font-size: 13pt; height: 26pt; vertical-align: bottom; padding-bottom: 3pt; }
         tr.abschnitt.zweiter td { height: 40pt; }
         tr.ueber td { font-size: 13pt; height: 26pt; }
+        tr.abstand td { height: 30pt; }
       </style></head><body>
         <h1>${esc(titel)}</h1>
         <div class="sub">Geschäftsjahr ${C.zeitraum(state.data, j).text} · Stand ${fmtDate(heute)}</div>
@@ -249,6 +253,7 @@
           <tr class="total"><td>Total Ausgaben</td><td class="r">${chf(summe(aus))}</td></tr>
           <tr class="abschnitt zweiter"><td colspan="2">Einnahmen</td></tr>${abschnitt(ein, 2, zeile)}
           <tr class="total"><td>Total Einnahmen</td><td class="r">${chf(summe(ein))}</td></tr>
+          <tr class="abstand"><td colspan="2"></td></tr>
           <tr class="total ueber"><td>${ue < 0 ? 'Fehlbetrag' : 'Überschuss'}</td><td class="r">${chf(ue)}</td></tr>
         </tbody></table>
       </body></html>`;
@@ -278,6 +283,7 @@
         tr.abschnitt td { font-size: 10pt; height: 16pt; vertical-align: bottom; padding-bottom: 2pt; }
         tr.abschnitt.zweiter td { height: 26pt; }
         tr.ueber td { font-size: 9.5pt; height: 17pt; }
+        tr.abstand td { height: 16pt; }
         .fuss { font-size: 6.5pt; color: #555; margin-top: 5pt; white-space: nowrap; }
         tr.jahre th { font-size: 8pt; font-weight: bold; color: #000; border-bottom: 0; text-align: center; }
         .c { text-align: center; }
@@ -295,6 +301,7 @@
           ${total('Total Ausgaben', z.aufwand, 'aufwand')}
           <tr class="abschnitt zweiter"><td colspan="${breite}">Einnahmen</td></tr>${abschnitt(z.ertrag, breite, zeile)}
           ${total('Total Einnahmen', z.ertrag, 'ertrag')}
+          <tr class="abstand"><td colspan="${breite}"></td></tr>
           <tr class="total ueber"><td colspan="2">Überschuss</td>${spalten.map((sp) => zelle(sp, ueber(sp), 'ertrag')).join('')}</tr>
         </tbody></table>
         <div class="fuss">Differenz = tatsächlich − Budget: <span class="lg gut" style="background:#cdebd8;color:#135c33">grün</span> besser als budgetiert (weniger ausgegeben oder mehr eingenommen), <span class="lg" style="background:#f7d0c8;color:#9b2412">rot</span> schlechter. Tatsächliche Zahlen aus der Buchhaltung${hand.length ? `; ${hand.join(', ')} aus dem Excel` : ''}.</div>
