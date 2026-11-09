@@ -40,7 +40,7 @@ console.log('Buchhaltung bestanden.');
       settings: { firma: 'B' }, settingsMod: 4, geloescht: { c: 3 } });
   assert.deepStrictEqual(M.buchungen.map((x) => x.id + ':' + x.betrag), ['a:1', 'b:1081.05']); assert.strictEqual(M.kontenplaene[2026].zeilen.length, 2); assert.ok(M.kontenplaene[2027]);
   assert.strictEqual(M.settings.firma, 'B');
-  const leer = C.emptyData(); assert.deepStrictEqual(Object.keys(C.mergeData(leer, C.emptyData())).sort(), ['bankZeilen', 'buchungen', 'geloescht', 'kontenplaene', 'settings', 'settingsMod', 'version']);
+  const leer = C.emptyData(); assert.deepStrictEqual(Object.keys(C.mergeData(leer, C.emptyData())).sort(), ['bankZeilen', 'buchungen', 'budgets', 'geloescht', 'kontenplaene', 'settings', 'settingsMod', 'version']);
   console.log('Zwei Rechner bestanden.');
 }
 
