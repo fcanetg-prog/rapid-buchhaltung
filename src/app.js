@@ -164,6 +164,7 @@
         if (p && typeof p.text === 'string' && p.text.trim()) q.text = p.text.trim();
         if (p && C.isNum(p.intern)) q.intern = p.intern;
         if (p && C.isNum(p.extern)) q.extern = p.extern;
+        if (p && C.isNum(p.ist)) q.ist = p.ist;   // tatsächlich, von Hand (nur für Jahre ohne Buchhaltung in der App)
         if (Object.keys(q).length) posten[String(konto)] = q;
       }
       out.budgets[jahr] = { mod: (bu && bu.mod) || 0, posten };
