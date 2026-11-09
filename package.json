@@ -1,7 +1,7 @@
 {
   "name": "rapid-buchhaltung",
   "productName": "Buchhaltung Rapid Openair",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "description": "Buchhaltung für das Rapid Openair",
   "author": "Fabio Canetg",
   "private": true,

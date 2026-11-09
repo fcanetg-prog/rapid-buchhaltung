@@ -463,11 +463,22 @@
       // Konten: Bilanzkonten auf einer Seite, die Erfolgsrechnung beginnt auf einer neuen Seite
       const iEr = p.findIndex((z) => z.sektion && !z.konto && !z.gruppe && /erfolg/i.test(z.text));
       const kontenTeile = iEr > 0 ? [['Konten: Bilanz', p.slice(0, iEr)], ['Konten: Erfolgsrechnung', p.slice(iEr)]] : [['Konten', p]];
+      // Wie bei Bilanz und Erfolgsrechnung: Zwischentotale, die nur ein einziges anderes Total weitergeben
+      // (Bruttoergebnis, Betriebliches Ergebnis, Kurzfristiges Fremdkapital usw.), fallen weg.
+      const mitK = p.filter((z) => (z.konto || z.gruppe) && z.gruppe !== '00');
+      const grpK = new Set(mitK.filter((z) => z.gruppe).map((z) => z.gruppe));
+      // Nur innerhalb desselben Teils (Bilanz bzw. Erfolgsrechnung): Der Jahresgewinn der Erfolgsrechnung bleibt stehen.
+      const teilVon = (z) => (iEr > 0 && p.indexOf(z) >= iEr ? 'er' : 'bi');
+      const elternK = (z) => mitK.find((x) => x.gruppe === z.summe_in);
+      const wegK = new Set(mitK.filter((z) => z.gruppe && grpK.has(z.summe_in) && teilVon(elternK(z)) === teilVon(z)
+        && mitK.filter((x) => x.summe_in === z.summe_in).length === 1).map((z) => z.gruppe));
+      // «Summ. in» zeigt auf das nächste sichtbare Total (z. B. Erträge → E7 statt des weggelassenen E1)
+      const sumIn = (z) => { let g = z.summe_in, n = 0; while (wegK.has(g) && n++ < 20) g = ((mitK.find((x) => x.gruppe === g)) || {}).summe_in || ''; return g; };
       const kontenTab = kontenTeile.map(([name, zeilen]) => `<table class="kt">${kopf(name, [['Sektion'], ['Gruppe'], ['Konto'], ['Beschreibung'], ['BKlasse', 'c'], ['Summ. in', 'c'], ['Saldo CHF', 'r']])}
-        <tbody>${zeilen.map((z) => {
+        <tbody>${zeilen.filter((z) => !(z.gruppe && wegK.has(z.gruppe))).map((z) => {
           if (z.sektion && !z.konto && !z.gruppe) return `<tr class="sek"><td>${esc(z.sektion)}</td><td></td><td></td><td colspan="4">${esc(z.text)}</td></tr>`;
-          if (z.gruppe) return `<tr class="g ${/^(1|2|00|E\d|10|14|20|24|2A|28)$/.test(z.gruppe) ? 'gross' : ''}"><td></td><td>${esc(z.gruppe)}</td><td></td><td>${esc(z.text)}</td><td></td><td class="c">${esc(z.summe_in)}</td><td class="r">${chf(a.saldoVon(z), true)}</td></tr>`;
-          return `<tr><td></td><td></td><td>${esc(z.konto)}</td><td>${esc(z.text)}</td><td class="c">${esc(z.bklasse)}</td><td class="c">${esc(z.summe_in)}</td><td class="r">${chf(a.saldoVon(z), true)}</td></tr>`;
+          if (z.gruppe) return `<tr class="g ${/^(1|2|00|E\d|10|14|20|24|2A|28)$/.test(z.gruppe) ? 'gross' : ''}"><td></td><td>${esc(z.gruppe)}</td><td></td><td>${esc(z.text)}</td><td></td><td class="c">${esc(sumIn(z))}</td><td class="r">${chf(a.saldoVon(z), true)}</td></tr>`;
+          return `<tr><td></td><td></td><td>${esc(z.konto)}</td><td>${esc(z.text)}</td><td class="c">${esc(z.bklasse)}</td><td class="c">${esc(sumIn(z))}</td><td class="r">${chf(a.saldoVon(z), true)}</td></tr>`;
         }).join('')}</tbody></table>`).join('');
 
       const tot = [['1', 'Totalsumme Aktiven', t.aktiven], ['2', 'Total Passiven und Eigenkapital', t.passiven], ['01', 'Gewinn(+) Verlust(-) der Bilanz', t.bilanz],
