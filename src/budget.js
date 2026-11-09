@@ -31,19 +31,20 @@
 
     /**
      * Tatsächliche Zahlen eines Jahres pro Konto, positiv für Aufwand und Ertrag.
-     * Aus der Buchhaltung, wenn es für das Jahr eine gibt (immer aktuell); sonst von Hand übernommene Zahlen
-     * (z. B. aus dem Excel), solange das Jahr nicht in der App gebucht ist. null: keine Zahlen.
+     * Fix übernommene Zahlen (z. B. aus dem Excel) haben Vorrang; sonst aus der Buchhaltung des Jahres (immer aktuell).
+     * null: keine Zahlen.
      */
     function tatsaechlich(j) {
+      // Fix übernommene Zahlen (z. B. aus dem Excel) gelten auch dann, wenn das Jahr später in der App gebucht ist.
+      const hand = Object.entries(posten(j)).filter(([, p]) => p.ist != null);
+      if (hand.length) return { werte: new Map(hand.map(([k, p]) => [k, p.ist])), quelle: 'hand' };
       if ((state.data.kontenplaene || {})[j]) {
         const s = L.saldi(state.data.buchungen.filter((b) => b.jahr === j && !b.vorschlag));
         const werte = new Map();
         for (const [k, v] of s) werte.set(k, artVon(k) === 'ertrag' ? -v.saldo : v.saldo);
         return { werte, quelle: 'buchhaltung' };
       }
-      const hand = Object.entries(posten(j)).filter(([, p]) => p.ist != null);
-      if (!hand.length) return null;
-      return { werte: new Map(hand.map(([k, p]) => [k, p.ist])), quelle: 'hand' };
+      return null;
     }
 
     /** Immer die drei Vorjahre, jüngstes zuerst; Jahre ohne Daten bleiben leer, sehen aber gleich aus. */
@@ -141,7 +142,11 @@
     };
 
     /** Abschnitt mit Gruppen; zwischen den Gruppen eine sichtbare Leerzeile. */
-    const abschnitt = (liste, breite, zeile) => gruppen(liste).map((g, i) => (i ? `<tr class="bg-leer"><td colspan="${breite}"></td></tr>` : '') + g.zeilen.map(zeile).join('')).join('');
+    // Gruppen: Die erste Zeile jeder weiteren Gruppe bekommt oben einen dicken Strich (Klasse bg-grp).
+    const abschnitt = (liste, breite, zeile) => gruppen(liste).map((g, i) => g.zeilen.map((r, k) => {
+      const h = zeile(r);
+      return i && !k ? h.replace(/^<tr class="/, '<tr class="bg-grp ').replace(/^<tr>/, '<tr class="bg-grp">') : h;
+    }).join('')).join('');
 
     function viewIntern(m) {
       const { j, spalten, wert, summe, ueber, klasse, z } = m;
@@ -166,12 +171,12 @@
           <tr class="bg-abschnitt"><td colspan="${breite}">Ausgaben</td></tr>
           ${abschnitt(z.aufwand, breite, zeile)}
           ${total('Total Ausgaben', z.aufwand, 'aufwand')}
-          <tr class="bg-abschnitt"><td colspan="${breite}">Einnahmen</td></tr>
+          <tr class="bg-abschnitt zweiter"><td colspan="${breite}">Einnahmen</td></tr>
           ${abschnitt(z.ertrag, breite, zeile)}
           ${total('Total Einnahmen', z.ertrag, 'ertrag')}
           <tr class="bg-total bg-ueber"><td colspan="2">Überschuss</td>${ue}</tr>
         </tbody></table>
-        <p class="hint">Tatsächliche Zahlen kommen aus der Buchhaltung des jeweiligen Geschäftsjahres und sind immer aktuell; ein Klick darauf zeigt den Kontoauszug.${hand.length ? ` Für ${hand.join(', ')} gibt es in der App keine Buchhaltung; diese Zahlen stammen aus dem Excel (kursiv) und werden ersetzt, sobald das Jahr importiert ist.` : ''} Differenz = tatsächlich − Budget. <span class="bg-legende gut">grün</span> besser als budgetiert (weniger ausgegeben oder mehr eingenommen), <span class="bg-legende schlecht">rot</span> schlechter (mehr ausgegeben oder weniger eingenommen).</p>
+        <p class="hint">Tatsächliche Zahlen kommen aus der Buchhaltung des jeweiligen Geschäftsjahres und sind immer aktuell; ein Klick darauf zeigt den Kontoauszug.${hand.length ? ` Die Zahlen für ${hand.join(', ')} sind fix aus dem Excel übernommen (kursiv).` : ''} Differenz = tatsächlich − Budget. <span class="bg-legende gut">grün</span> besser als budgetiert (weniger ausgegeben oder mehr eingenommen), <span class="bg-legende schlecht">rot</span> schlechter (mehr ausgegeben oder weniger eingenommen).</p>
       </div>`;
     }
 
@@ -190,7 +195,7 @@
         <thead><tr><th>Konto</th><th>Posten</th><th class="r">Budget ${j} extern</th><th class="r bg-int">intern</th><th class="r bg-int">Abweichung</th></tr></thead>
         <tbody>
           <tr class="bg-abschnitt"><td colspan="5">Ausgaben</td></tr>${abschnitt(z.aufwand, 5, zeile)}${tot('Total Ausgaben', z.aufwand)}
-          <tr class="bg-abschnitt"><td colspan="5">Einnahmen</td></tr>${abschnitt(z.ertrag, 5, zeile)}${tot('Total Einnahmen', z.ertrag)}
+          <tr class="bg-abschnitt zweiter"><td colspan="5">Einnahmen</td></tr>${abschnitt(z.ertrag, 5, zeile)}${tot('Total Einnahmen', z.ertrag)}
           <tr class="bg-total bg-ueber"><td colspan="2">Überschuss</td><td class="r ${ue < 0 ? 'neg' : ''}">${chf(ue)}</td><td class="r bg-int">${chf(ui)}</td><td></td></tr>
         </tbody></table>
         <p class="hint">Das externe Budget ist unabhängig vom internen. Ins PDF kommen nur Posten mit einem Betrag (auch 0); ein leeres Feld lässt den Posten weg. Die Spalten «intern» und «Abweichung» sind nur hier sichtbar, nicht im PDF.</p>
@@ -208,9 +213,11 @@
         th { text-align: left; font-weight: normal; color: #444; border-bottom: 1px solid #000; white-space: nowrap; vertical-align: bottom; }
         td { white-space: nowrap; }
         .r { text-align: right; }
-        tr.leer td { background: #e4eded; }
+        td { border-bottom: 0.5pt dotted #9aa6a7; }
+        tr.bg-grp td { border-top: 1.3pt solid #333; }
+        tr.abschnitt td { border-bottom: 1.3pt solid #000; }
         tr.abschnitt td { font-weight: bold; }
-        tr.total td { font-weight: bold; border-top: 1px solid #000; }
+        tr.total td { font-weight: bold; border-top: 1px solid #000; border-bottom: 0; }
         tr.ueber td { border-top: 2px solid #000; }
         tr { page-break-inside: avoid; }`;
 
@@ -231,16 +238,16 @@
         td { padding: 0 4pt; height: 16pt; }
         td.r { width: 90pt; }
         td.t { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; }
-        tr.leer td { height: 6pt; }
-        tr.abschnitt td { font-size: 11pt; height: 24pt; vertical-align: bottom; padding-bottom: 3pt; }
-        tr.ueber td { font-size: 11.5pt; height: 22pt; }
+        tr.abschnitt td { font-size: 13pt; height: 26pt; vertical-align: bottom; padding-bottom: 3pt; }
+        tr.abschnitt.zweiter td { height: 40pt; }
+        tr.ueber td { font-size: 13pt; height: 26pt; }
       </style></head><body>
         <h1>${esc(titel)}</h1>
         <div class="sub">Geschäftsjahr ${C.zeitraum(state.data, j).text} · Stand ${fmtDate(heute)}</div>
         <table><thead><tr><th>Posten</th><th class="r">Budget ${j} in CHF</th></tr></thead><tbody>
-          <tr class="abschnitt"><td colspan="2">Ausgaben</td></tr>${abschnitt(aus, 2, zeile).replace(/bg-leer/g, 'leer')}
+          <tr class="abschnitt"><td colspan="2">Ausgaben</td></tr>${abschnitt(aus, 2, zeile)}
           <tr class="total"><td>Total Ausgaben</td><td class="r">${chf(summe(aus))}</td></tr>
-          <tr class="abschnitt"><td colspan="2">Einnahmen</td></tr>${abschnitt(ein, 2, zeile).replace(/bg-leer/g, 'leer')}
+          <tr class="abschnitt zweiter"><td colspan="2">Einnahmen</td></tr>${abschnitt(ein, 2, zeile)}
           <tr class="total"><td>Total Einnahmen</td><td class="r">${chf(summe(ein))}</td></tr>
           <tr class="total ueber"><td>${ue < 0 ? 'Fehlbetrag' : 'Überschuss'}</td><td class="r">${chf(ue)}</td></tr>
         </tbody></table>
@@ -269,9 +276,9 @@
         .js { border-left: 1px solid #9aa; }
         .tat { background: #f1f6f6; }
         .hand { font-style: italic; }
-        tr.leer td { height: 4pt; }
-        tr.abschnitt td { font-size: 8pt; height: 13pt; vertical-align: bottom; padding-bottom: 1.5pt; }
-        tr.ueber td { font-size: 8pt; height: 13pt; }
+        tr.abschnitt td { font-size: 10pt; height: 16pt; vertical-align: bottom; padding-bottom: 2pt; }
+        tr.abschnitt.zweiter td { height: 26pt; }
+        tr.ueber td { font-size: 9.5pt; height: 17pt; }
         .fuss { font-size: 6.5pt; color: #555; margin-top: 5pt; white-space: nowrap; }
         tr.jahre th { font-size: 8pt; font-weight: bold; color: #000; border-bottom: 0; text-align: center; }
         .c { text-align: center; }
@@ -285,9 +292,9 @@
           <tr class="jahre"><th colspan="2"></th>${jahre.map((x) => `<th colspan="3" class="c js">${x}${x === j ? ' (laufend)' : ''}</th>`).join('')}</tr>
           <tr><th>Konto</th><th>Posten</th>${spalten.map((sp) => `<th class="r ${kl(sp)}">${{ budget: 'Budget', tat: 'Tatsächlich', diff: 'Differenz' }[sp.art]}</th>`).join('')}</tr>
         </thead><tbody>
-          <tr class="abschnitt"><td colspan="${breite}">Ausgaben</td></tr>${abschnitt(z.aufwand, breite, zeile).replace(/bg-leer/g, 'leer')}
+          <tr class="abschnitt"><td colspan="${breite}">Ausgaben</td></tr>${abschnitt(z.aufwand, breite, zeile)}
           ${total('Total Ausgaben', z.aufwand, 'aufwand')}
-          <tr class="abschnitt"><td colspan="${breite}">Einnahmen</td></tr>${abschnitt(z.ertrag, breite, zeile).replace(/bg-leer/g, 'leer')}
+          <tr class="abschnitt zweiter"><td colspan="${breite}">Einnahmen</td></tr>${abschnitt(z.ertrag, breite, zeile)}
           ${total('Total Einnahmen', z.ertrag, 'ertrag')}
           <tr class="total ueber"><td colspan="2">Überschuss</td>${spalten.map((sp) => zelle(sp, ueber(sp), 'ertrag')).join('')}</tr>
         </tbody></table>
