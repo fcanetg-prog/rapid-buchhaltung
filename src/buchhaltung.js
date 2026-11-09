@@ -446,17 +446,20 @@
       const p = plan(), bs = L.sortiert(buchungen());
       const a = L.auswertung(p, bs), t = L.totalsummen(p, bs), ab = L.abschnitte(p);
       const titel = `${firma()} ${jahr()}`;
-      const kopf = (name, spalten) => `<thead><tr><th colspan="${spalten.length}" class="kopf"><div class="t1">${esc(titel)}</div><div class="t2">${esc(name)}</div></th></tr>
+      const kopf = (name, spalten) => `<thead><tr><th colspan="${spalten.length}" class="kopf"><div class="t2">${esc(name)}</div></th></tr>
         <tr class="sp">${spalten.map((s) => `<th class="${s[1] || ''}">${s[0]}</th>`).join('')}</tr></thead>`;
       const abschluss = (name, zeilen) => `<table class="ab">${kopf(name, [['Konto'], ['Beschreibung'], ['CHF', 'r']])}
         <tbody>${zeilen.map((z) => `<tr class="${z.gruppe ? 'g' : ''} ${z.gross ? 'gross' : ''}"><td>${esc(z.nr)}</td><td>${esc(z.text)}</td><td class="r">${chf(z.wert)}</td></tr>`).join('')}</tbody></table>`;
 
-      const kontenTab = `<table class="kt">${kopf('Konten', [['Sektion'], ['Gruppe'], ['Konto'], ['Beschreibung'], ['BKlasse', 'c'], ['Summ. in', 'c'], ['Saldo CHF', 'r']])}
-        <tbody>${p.map((z) => {
+      // Konten: Bilanzkonten auf einer Seite, die Erfolgsrechnung beginnt auf einer neuen Seite
+      const iEr = p.findIndex((z) => z.sektion && !z.konto && !z.gruppe && /erfolg/i.test(z.text));
+      const kontenTeile = iEr > 0 ? [['Konten: Bilanz', p.slice(0, iEr)], ['Konten: Erfolgsrechnung', p.slice(iEr)]] : [['Konten', p]];
+      const kontenTab = kontenTeile.map(([name, zeilen]) => `<table class="kt">${kopf(name, [['Sektion'], ['Gruppe'], ['Konto'], ['Beschreibung'], ['BKlasse', 'c'], ['Summ. in', 'c'], ['Saldo CHF', 'r']])}
+        <tbody>${zeilen.map((z) => {
           if (z.sektion && !z.konto && !z.gruppe) return `<tr class="sek"><td>${esc(z.sektion)}</td><td></td><td></td><td colspan="4">${esc(z.text)}</td></tr>`;
           if (z.gruppe) return `<tr class="g ${/^(1|2|00|E\d|10|14|20|24|2A|28)$/.test(z.gruppe) ? 'gross' : ''}"><td></td><td>${esc(z.gruppe)}</td><td></td><td>${esc(z.text)}</td><td></td><td class="c">${esc(z.summe_in)}</td><td class="r">${chf(a.saldoVon(z), true)}</td></tr>`;
           return `<tr><td></td><td></td><td>${esc(z.konto)}</td><td>${esc(z.text)}</td><td class="c">${esc(z.bklasse)}</td><td class="c">${esc(z.summe_in)}</td><td class="r">${chf(a.saldoVon(z), true)}</td></tr>`;
-        }).join('')}</tbody></table>`;
+        }).join('')}</tbody></table>`).join('');
 
       const tot = [['1', 'Totalsumme Aktiven', t.aktiven], ['2', 'Total Passiven und Eigenkapital', t.passiven], ['01', 'Gewinn(+) Verlust(-) der Bilanz', t.bilanz],
         ['3', 'Totalsumme Aufwand', t.aufwand], ['4', 'Totalsumme Ertrag', t.ertrag], ['02', 'Verlust(+) Gewinn(-) der Erfolgsrechnung', t.erfolg], ['00', 'Differenz muss = 0 sein', t.differenz]];
@@ -464,13 +467,13 @@
         <tbody>${tot.map((r) => `<tr class="${r[0].length === 2 ? 'g' : ''}"><td>${r[0]}</td><td>${r[1]}</td><td class="r">${chf(r[2], r[0] === '00')}</td></tr>`).join('')}</tbody></table>`;
 
       const journal = `<table class="jr">${kopf('Journal', [['Datum'], ['Beleg'], ['Beschreibung'], ['KtSoll'], ['KtHaben'], ['Betrag CHF', 'r']])}
-        <tbody>${bs.map((b) => `<tr><td>${fmtDate(b.datum)}</td><td>${esc(b.beleg)}</td><td>${esc(b.text)}</td><td>${esc(b.soll)}</td><td>${esc(b.haben)}</td><td class="r">${chf(b.betrag)}</td></tr>`).join('')}</tbody></table>`;
+        <tbody>${bs.map((b) => `<tr><td>${fmtDate(b.datum)}</td><td>${esc(b.beleg)}</td><td class="txt">${esc(b.text)}</td><td>${esc(b.soll)}</td><td>${esc(b.haben)}</td><td class="r">${chf(b.betrag)}</td></tr>`).join('')}</tbody></table>`;
 
       const auszuege = konten().filter((z) => a.konto.has(z.konto)).map((z) => {
         const k = L.kontoauszug(z.konto, bs);
         return `<table class="ka">${kopf(`${z.konto} ${z.text}`, [['Datum'], ['Beleg'], ['Beschreibung'], ['Gegenkto.'], ['Soll CHF', 'r'], ['Haben CHF', 'r'], ['Saldo CHF', 'r']])}
-          <tbody>${k.zeilen.map((r) => `<tr><td>${fmtDate(r.datum)}</td><td>${esc(r.beleg)}</td><td>${esc(r.text)}</td><td>${esc(r.gegenkonto)}</td><td class="r">${chf(r.soll)}</td><td class="r">${chf(r.haben)}</td><td class="r">${chf(r.saldo, true)}</td></tr>`).join('')}
-          <tr class="g"><td>${fmtDate(bis())}</td><td></td><td>Totalsumme Bewegungen</td><td></td><td class="r">${chf(k.soll, true)}</td><td class="r">${chf(k.haben, true)}</td><td class="r">${chf(k.saldo, true)}</td></tr></tbody></table>`;
+          <tbody>${k.zeilen.map((r) => `<tr><td>${fmtDate(r.datum)}</td><td>${esc(r.beleg)}</td><td class="txt">${esc(r.text)}</td><td>${esc(r.gegenkonto)}</td><td class="r">${chf(r.soll)}</td><td class="r">${chf(r.haben)}</td><td class="r">${chf(r.saldo, true)}</td></tr>`).join('')}
+          <tr class="g"><td>${fmtDate(bis())}</td><td></td><td class="txt">Totalsumme Bewegungen</td><td></td><td class="r">${chf(k.soll, true)}</td><td class="r">${chf(k.haben, true)}</td><td class="r">${chf(k.saldo, true)}</td></tr></tbody></table>`;
       }).join('');
 
       const gewinn = -t.erfolg;
@@ -490,8 +493,7 @@
         table.ab tr.gross td { font-size: 10pt; padding-top: 3pt; padding-bottom: 4.5pt; }
         th { text-align: left; font-weight: normal; font-size: 7pt; padding: 0 3pt 5pt; vertical-align: bottom; }
         th.kopf { padding: 0 0 12pt; }
-        .t1 { font-size: 9pt; font-weight: bold; }
-        .t2 { font-size: 10.5pt; font-weight: bold; margin-top: 14pt; }
+        .t2 { font-size: 10.5pt; font-weight: bold; }
         td { padding: 1.1pt 3pt; vertical-align: top; }
         .r { text-align: right; white-space: nowrap; }
         .c { text-align: center; }
@@ -504,11 +506,20 @@
         table.kt td:nth-child(7), table.tt td:nth-child(3), table.ab td:nth-child(3) { width: 78pt; }
         table.ab td:nth-child(1), table.tt td:nth-child(1) { width: 44pt; }
         table.jr td:nth-child(1), table.ka td:nth-child(1) { width: 54pt; }
-        table.jr td:nth-child(2), table.ka td:nth-child(2) { width: 44pt; }
+        /* Journal und Kontoauszüge: jede Buchung auf einer Zeile. Beleg so breit wie der längste, Beschreibung gekürzt. */
+        table.jr td, table.ka td { white-space: nowrap; }
+        table.jr td:nth-child(2), table.ka td:nth-child(2) { width: 1%; padding-right: 8pt; }
+        table.jr td.txt, table.ka td.txt { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
         table.jr td:nth-child(4), table.jr td:nth-child(5), table.ka td:nth-child(4) { width: 40pt; }
         table.jr td:nth-child(6) { width: 64pt; }
         table.ka td:nth-child(5), table.ka td:nth-child(6), table.ka td:nth-child(7) { width: 62pt; }
         table.tt tr.g td { padding-bottom: 10pt; }
+        /* Konten: etwas dichter, damit Bilanz und Erfolgsrechnung je auf eine Seite passen; Beschreibung einzeilig */
+        table.kt td, table.kt th { white-space: nowrap; }
+        table.kt td:nth-child(4) { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
+        table.kt tr.gross td { font-size: 10pt; padding-top: 3pt; padding-bottom: 5pt; }
+        table.kt tr.g td { padding-bottom: 4pt; }
+        table.kt tr.sek td { padding: 5pt 3pt 4pt; }
       </style></head><body>
         <div class="deck"><h1>${esc(titel)}</h1><p>Buchhaltung, Stand ${fmtDate(heute)}</p><p>Geschäftsjahr ${zr().text}</p>
           <dl><dt>Total Aktiven</dt><dd>${chf(t.aktiven)}</dd><dt>Ertrag</dt><dd>${chf(-t.ertrag)}</dd><dt>Aufwand</dt><dd>${chf(t.aufwand)}</dd>
