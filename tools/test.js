@@ -125,4 +125,43 @@ console.log('Buchhaltung bestanden.');
   console.log('Eröffnung nachführen bestanden.');
 }
 
+// Banana-Export lesen: Geschäftsjahr, Kontenplan, Eröffnungssaldi aus der Kontentabelle, negative Beträge, Sonderzeichen
+{
+  const B = require('../src/banana.js'), muster = require('./banana-muster.js');
+  const xml = muster({ von: '01.12.2024', bis: '30.11.2025', firma: 'Rapid Openair', konten: [
+    { Section: '1', Description: 'AKTIVEN' },
+    { Account: '1010', Description: 'Bankkonto  GKB', BClass: '1', Gr: '1', Opening: '1200.50' },
+    { Group: '1', Description: 'Total Aktiven', Gr: '00' },
+    { Section: '2', Description: 'PASSIVEN' },
+    { Account: '2300', Description: 'TP', BClass: '2', Gr: '2', Opening: '-200.50' },
+    { Account: '2970', Description: 'Gewinnvortrag', BClass: '2', Gr: '2', Opening: '-1000' },
+    { Account: '2999', Description: 'Alt', BClass: '2', Gr: '2', Disable: '1' },
+    { Group: '2', Description: 'Total Passiven', Gr: '00' },
+    { Section: '4' },
+    { Account: '3000', Description: 'Tickets & Bons <Vorverkauf>', BClass: '4', Gr: 'E' },
+    { Account: '4000', Description: 'Gagen', BClass: '3', Gr: 'E' },
+    { Group: 'E', Description: 'Jahresgewinn', Gr: '2' },
+  ], buchungen: [
+    { Date: '2025-03-01', Doc: '1', Description: 'Tickets', AccountDebit: '1010', AccountCredit: '3000', Amount: '500.00' },
+    { Date: '2025-04-01', Doc: '2', Description: 'Gage  Band', AccountDebit: '1010', AccountCredit: '4000', Amount: '-300' },
+    { Date: '2025-04-02', Doc: '3', Description: 'Nur Text', AccountDebit: '', AccountCredit: '', Amount: '' },
+    { Date: '2025-04-03', Doc: '4', Description: 'Ohne Konto', AccountDebit: '1010', AccountCredit: '', Amount: '10' },
+  ] });
+  const d = B.lesen(xml);
+  assert.deepStrictEqual([d.jahr, d.gjBeginn, d.von, d.bis, d.firma, d.ohneKonto, d.eroeffnungAusKonten], [2025, '12-01', '2024-12-01', '2025-11-30', 'Rapid Openair', 1, 3]);
+  assert.deepStrictEqual(d.kontenplan.filter((z) => z.konto).map((z) => z.konto + ' ' + z.text), ['1010 Bankkonto GKB', '2300 TP', '2970 Gewinnvortrag', '3000 Tickets & Bons <Vorverkauf>', '4000 Gagen']);
+  assert.ok(!d.kontenplan.some((z) => z.sektion === '4'));
+  assert.deepStrictEqual(d.buchungen.map((b) => [b.datum, b.soll, b.haben, b.betrag, !!b.eroeffnung]), [
+    ['2024-12-01', '1010', '2970', 1200.5, true], ['2024-12-01', '2970', '2300', 200.5, true],
+    ['2025-03-01', '1010', '3000', 500, false], ['2025-04-01', '4000', '1010', 300, false]]);
+  const s = L.saldi(d.buchungen);
+  assert.strictEqual(s.get('2970').saldo, -1000); assert.strictEqual(s.get('1010').saldo, 1400.5);
+  assert.throws(() => B.lesen('{"a":1}'), /kein Excel-Export/);
+  // Eigener Zeitraum pro Jahr; das Folgejahr beginnt am Tag nach dem Ende des Vorjahres
+  const daten = { settings: { gjBeginn: '12-01' }, kontenplaene: { 2025: { von: '2024-12-15', bis: '2025-12-14' } } };
+  assert.deepStrictEqual([C.zeitraum(daten, 2025).text, C.zeitraum(daten, 2026).von, C.zeitraum(daten, 2026).bis, C.zeitraum(daten, 2024).von], ['15.12.2024 bis 14.12.2025', '2025-12-15', '2026-11-30', '2023-12-01']);
+  assert.ok(C.zeitraum(daten, 2025).enthaelt('2025-12-01'));
+  console.log('Banana-Import bestanden.');
+}
+
 console.log('Alle Prüfungen bestanden.');

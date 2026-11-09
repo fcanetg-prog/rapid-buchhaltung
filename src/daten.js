@@ -28,6 +28,17 @@
   /** «01.12.2025 bis 30.11.2026» */
   const gjText = (s, j) => `${dm(gjVon(s, j))} bis ${dm(gjBis(s, j))}`;
 
+  /**
+   * Zeitraum des Geschäftsjahres j in diesen Daten. Ein importiertes Jahr kann einen eigenen Zeitraum haben (z. B. aus
+   * Banana); sonst beginnt es am Tag nach dem Ende des Vorjahres oder gilt der Beginn aus den Einstellungen.
+   */
+  function zeitraum(d, j) {
+    const s = d.settings, kp = d.kontenplaene || {}, p = kp[j] || {}, vor = kp[j - 1] || {};
+    const von = p.von || (vor.bis ? isoPlus(vor.bis, 1) : gjVon(s, j));
+    const bis = p.bis || gjBis(s, j);
+    return { von, bis, text: `${dm(von)} bis ${dm(bis)}`, enthaelt: (datum) => datum >= von && datum <= bis };
+  }
+
   function emptyData() {
     return { version: 1, settings: Object.assign({}, DEFAULTS), buchungen: [], kontenplaene: {}, bankZeilen: {} };
   }
@@ -94,5 +105,5 @@
     };
   }
 
-  return { DEFAULTS, emptyData, parseAmount, mergeData, round2, isNum, gjBeginn, gjVon, gjBis, gjJahr, gjIn, gjText };
+  return { DEFAULTS, emptyData, parseAmount, mergeData, round2, isNum, gjBeginn, gjVon, gjBis, gjJahr, gjIn, gjText, zeitraum };
 });

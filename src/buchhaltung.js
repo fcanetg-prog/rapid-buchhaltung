@@ -20,8 +20,9 @@
 
     const jahr = () => state.year;
     // Geschäftsjahr: erster und letzter Tag, Datum im Geschäftsjahr
-    const von = () => C.gjVon(state.data.settings, jahr()), bis = () => C.gjBis(state.data.settings, jahr());
-    const imJahr = (d) => C.gjIn(state.data.settings, jahr(), d);
+    const zr = () => C.zeitraum(state.data, jahr());
+    const von = () => zr().von, bis = () => zr().bis;
+    const imJahr = (d) => zr().enthaelt(d);
     const plan = () => { const p = KP()[jahr()]; return p ? p.zeilen : null; };
     // Vorschläge aus dem Bankabgleich zählen erst, wenn sie bestätigt sind.
     const buchungen = () => DB().filter((b) => b.jahr === jahr() && !b.vorschlag);
@@ -83,7 +84,7 @@
       const nummern = new Set(konten().map((z) => z.konto));
       const soll = String(f.soll).trim().split(/\s/)[0], haben = String(f.haben).trim().split(/\s/)[0];
       if (!f.datum) return { fehler: 'Das Datum fehlt.', feld: 'datum' };
-      if (!imJahr(f.datum)) return { fehler: `Das Datum liegt nicht im Geschäftsjahr ${jahr()} (${C.gjText(state.data.settings, jahr())}). Wähle links das passende Jahr.`, feld: 'datum' };
+      if (!imJahr(f.datum)) return { fehler: `Das Datum liegt nicht im Geschäftsjahr ${jahr()} (${zr().text}). Wähle links das passende Jahr.`, feld: 'datum' };
       if (!String(f.text).trim()) return { fehler: 'Die Beschreibung fehlt.', feld: 'text' };
       if (!nummern.has(soll)) return { fehler: `Das Soll-Konto «${soll}» gibt es im Kontenplan nicht.`, feld: 'soll' };
       if (!nummern.has(haben)) return { fehler: `Das Haben-Konto «${haben}» gibt es im Kontenplan nicht.`, feld: 'haben' };
@@ -102,7 +103,7 @@
       const inhalt = { buchungen: viewBuchungen, konten: viewKonten, abschluss: viewAbschluss, auszug: viewAuszug }[S.tab]();
       return `
       <header class="head">
-        <h1>${TITEL} ${jahr()}<small class="gj">Geschäftsjahr ${C.gjText(state.data.settings, jahr())}</small></h1>
+        <h1>${TITEL} ${jahr()}<small class="gj">Geschäftsjahr ${zr().text}</small></h1>
         <div class="bignum"><b class="${gewinn < 0 ? 'neg' : ''}">${chf(gewinn)}</b><span>${gewinn < 0 ? 'Jahresverlust' : 'Jahresgewinn'} bisher</span></div>
       </header>
       <div class="bh-bar">
@@ -143,7 +144,7 @@
       const st = eroeffnungStand();
       if (!st || !st.anzahl) return '';
       const konten = [...st.aendern.map((x) => x.e), ...st.neu].map((e) => (e.soll === st.vortrag ? e.haben : e.soll)).concat(st.weg.map((b) => (b.soll === st.vortrag ? b.haben : b.soll)));
-      return `<div class="bh-eroe" role="status"><span><b>Die Schlusssaldi ${jahr() - 1} haben sich seit der Eröffnung geändert.</b>
+      return `<div class="bh-eroe" role="status"><span><b>Die Eröffnung ${jahr()} stimmt nicht mit den Schlusssaldi ${jahr() - 1} überein.</b>
         ${st.anzahl === 1 ? 'Eine Eröffnungsbuchung stimmt' : `${st.anzahl} Eröffnungsbuchungen stimmen`} nicht mehr (Konto ${[...new Set(konten)].map(esc).join(', ')}).</span>
         <span class="grow"></span><button class="btn small primary" data-bh="eroeffnung-nach">Eröffnung nachführen</button></div>`;
     }
@@ -171,11 +172,11 @@
 
     function viewLeer() {
       const vor = KP()[jahr() - 1];
-      return `<header class="head"><h1>${TITEL} ${jahr()}<small class="gj">Geschäftsjahr ${C.gjText(state.data.settings, jahr())}</small></h1></header>
+      return `<header class="head"><h1>${TITEL} ${jahr()}<small class="gj">Geschäftsjahr ${zr().text}</small></h1></header>
       <div class="sec"><p>Für ${jahr()} gibt es noch keine Buchhaltung. Sobald der Kontenplan geladen ist, kannst du buchen und Bankbewegungen einlesen.</p>
         <div class="row" style="margin-top:12px">
           ${vor ? `<button class="btn primary" data-bh="eroeffnen">Aus ${jahr() - 1} eröffnen</button>` : ''}
-          <button class="btn" data-action="import">Kontenplan oder Buchhaltung importieren</button>
+          <button class="btn" data-action="import">Aus Banana oder Datei importieren</button>
         </div>
         ${vor ? `<p class="hint">«Eröffnen» übernimmt den Kontenplan von ${jahr() - 1} und bucht per ${fmtDate(von())} die Schlusssaldi aller Bilanzkonten gegen das Vortragskonto (2970 oder das Passivkonto für Vortrag, Eigenkapital oder Vermögen). Der Jahreserfolg ${jahr() - 1} landet damit im Vortrag. Buchst du danach noch im Jahr ${jahr() - 1}, bietet die App an, die Eröffnung nachzuführen.</p>` : ''}
       </div>`;
@@ -325,7 +326,7 @@
       if (p.fehler) { toast(p.fehler, { fehler: true }); return; }
       if (!BANK_()) { toast('Im Kontenplan gibt es kein Bankkonto, gegen das die Bewegungen gebucht werden können.', { fehler: true }); return; }
       const z = p.zeilen.filter((x) => imJahr(x.datum));
-      if (!z.length) { toast(`Die Datei enthält keine Bewegungen im Geschäftsjahr ${jahr()} (${C.gjText(state.data.settings, jahr())}). Wähle links das passende Jahr.`, { fehler: true }); return; }
+      if (!z.length) { toast(`Die Datei enthält keine Bewegungen im Geschäftsjahr ${jahr()} (${zr().text}). Wähle links das passende Jahr.`, { fehler: true }); return; }
       const alle = DB().filter((b) => b.jahr === jahr());
       // Bankbewegungen des Jahres merken: Sie bestimmen dauerhaft die Reihenfolge der Buchungen.
       const gemerkt = BZ_()[bzKey(jahr())] || { mod: 0, zeilen: [] };
@@ -509,7 +510,7 @@
         table.ka td:nth-child(5), table.ka td:nth-child(6), table.ka td:nth-child(7) { width: 62pt; }
         table.tt tr.g td { padding-bottom: 10pt; }
       </style></head><body>
-        <div class="deck"><h1>${esc(titel)}</h1><p>Buchhaltung, Stand ${fmtDate(heute)}</p><p>Geschäftsjahr ${C.gjText(state.data.settings, jahr())}</p>
+        <div class="deck"><h1>${esc(titel)}</h1><p>Buchhaltung, Stand ${fmtDate(heute)}</p><p>Geschäftsjahr ${zr().text}</p>
           <dl><dt>Total Aktiven</dt><dd>${chf(t.aktiven)}</dd><dt>Ertrag</dt><dd>${chf(-t.ertrag)}</dd><dt>Aufwand</dt><dd>${chf(t.aufwand)}</dd>
           <dt><b>${gewinn < 0 ? 'Jahresverlust' : 'Jahresgewinn'}</b></dt><dd><b>${chf(gewinn)}</b></dd><dt>Buchungen</dt><dd>${bs.length}</dd></dl></div>
         ${abschluss('Bilanz: Aktiven', kompakt(ab.aktiven, a, 1)).replace('class="ab"', 'class="ab erste"')}

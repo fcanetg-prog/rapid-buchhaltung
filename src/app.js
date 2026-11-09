@@ -22,8 +22,8 @@
     async save(d) { localStorage.setItem('rapid-buchhaltung', JSON.stringify(d)); return { ok: true }; },
     importFile() {
       return new Promise((res) => {
-        const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json';
-        inp.onchange = async () => { try { res({ data: JSON.parse(await inp.files[0].text()) }); } catch (e) { res({ error: e.message }); } };
+        const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,.xls,.xml';
+        inp.onchange = async () => { try { const t = await inp.files[0].text(); res(/^\s*</.test(t) ? { text: t } : { data: JSON.parse(t) }); } catch (e) { res({ error: e.message }); } };
         inp.click();
       });
     },
@@ -65,7 +65,7 @@
   function merkeAbbild() {
     abbild = {
       b: new Map(state.data.buchungen.map((r) => [r.id, ohneMod(r)])),
-      k: Object.fromEntries(Object.entries(state.data.kontenplaene).map(([j, pl]) => [j, JSON.stringify(pl.zeilen)])),
+      k: Object.fromEntries(Object.entries(state.data.kontenplaene).map(([j, pl]) => [j, JSON.stringify([pl.zeilen, pl.von, pl.bis])])),
       z: Object.fromEntries(Object.entries(state.data.bankZeilen || {}).map(([j, bz]) => [j, JSON.stringify(bz.zeilen)])),
       s: JSON.stringify(state.data.settings),
     };
@@ -81,7 +81,7 @@
     }
     for (const id of abbild.b.keys()) if (!da.has(id)) d.geloescht[id] = jetzt;
     if (JSON.stringify(d.settings) !== abbild.s) d.settingsMod = jetzt;
-    for (const [j, pl] of Object.entries(d.kontenplaene)) if (JSON.stringify(pl.zeilen) !== abbild.k[j]) pl.mod = jetzt;
+    for (const [j, pl] of Object.entries(d.kontenplaene)) if (JSON.stringify([pl.zeilen, pl.von, pl.bis]) !== abbild.k[j]) pl.mod = jetzt;
     for (const [j, bz] of Object.entries(d.bankZeilen || {})) if (JSON.stringify(bz.zeilen) !== abbild.z[j]) bz.mod = jetzt;
     merkeAbbild();
   }
@@ -159,7 +159,12 @@
       out.bankZeilen[jahr] = { mod: (bz && bz.mod) || 0, zeilen: ((bz && bz.zeilen) || []).filter((z) => z && z.datum && C.isNum(z.betrag)).map((z, i) => ({ datum: z.datum, text: z.text || '', betrag: z.betrag, saldo: C.isNum(z.saldo) ? z.saldo : null, schluessel: z.schluessel || '', nr: C.isNum(z.nr) ? z.nr : i })) };
     }
     out.kontenplaene = {};
-    for (const [jahr, plan] of Object.entries(d.kontenplaene || {})) out.kontenplaene[jahr] = { mod: plan.mod || 0, zeilen: normPlan(plan.zeilen) };
+    const isoDatum = (x) => (/^\d{4}-\d{2}-\d{2}$/.test(x || '') ? x : null);
+    for (const [jahr, plan] of Object.entries(d.kontenplaene || {})) {
+      out.kontenplaene[jahr] = { mod: plan.mod || 0, zeilen: normPlan(plan.zeilen) };
+      // eigener Zeitraum eines importierten Geschäftsjahres
+      if (isoDatum(plan.von) && isoDatum(plan.bis)) Object.assign(out.kontenplaene[jahr], { von: plan.von, bis: plan.bis });
+    }
     return out;
   }
 
@@ -224,7 +229,7 @@
     return `<div class="leer"><div class="leer-box">
       <h1>Buchhaltung Rapid Openair</h1>
       ${state.fehler ? `<p class="warn">${esc(state.fehler)}</p>` : ''}
-      ${state.veraltet ? '' : `<p>Es sind noch keine Daten vorhanden. Importiere den Kontenplan oder eine bestehende Buchhaltung, oder starte leer und lade den Kontenplan später.</p>
+      ${state.veraltet ? '' : `<p>Es sind noch keine Daten vorhanden. Importiere eine Buchhaltung aus Banana (Excel-Export) oder einen Kontenplan, oder starte leer und lade den Kontenplan später.</p>
       <div class="row"><button class="btn primary" data-action="import">Importieren</button>
       <button class="btn" data-action="start-empty">Leer starten</button></div>`}
     </div></div>`;
@@ -247,7 +252,7 @@
           <div class="fld"><label for="s-firma">Name in Titel und Dossier</label><input id="s-firma" type="text" value="${esc(s.firma || '')}" data-action="setting-text" data-key="firma"><small>Steht oben links, auf dem Dossier als PDF und in dessen Dateinamen.</small></div>
           <div class="fld"><label for="s-gj">Beginn des Geschäftsjahres</label>
             <select id="s-gj" data-action="gj-beginn">${MONATE.map((m, i) => { const v = `${pad(i + 1)}-01`; return `<option value="${v}" ${C.gjBeginn(s) === v ? 'selected' : ''}>1. ${m}</option>`; }).join('')}</select>
-            <small>Das Geschäftsjahr ${state.year} dauert vom ${C.gjText(s, state.year)}. Es trägt die Jahreszahl, in der es endet.</small></div>
+            <small>Das Geschäftsjahr ${state.year} dauert vom ${C.zeitraum(state.data, state.year).text}. Es trägt die Jahreszahl, in der es endet.</small></div>
           <div class="fld"><label for="s-bank">Bankkonto für den E-Banking-Import (${state.year})</label>
             ${plan ? `<select id="s-bank" data-action="bank-konto">${kandidaten.map((z) => `<option value="${esc(z.konto)}" ${z.konto === bank ? 'selected' : ''}>${esc(z.konto)} ${esc(z.text)}</option>`).join('')}</select>
             <small>Gegen dieses Konto werden die Bewegungen aus dem CSV-Export der GKB gebucht.${s.bankKonto ? '' : ' Zurzeit automatisch gewählt.'}</small>`
@@ -264,7 +269,7 @@
           <button class="btn" data-action="export">Daten exportieren</button>
           <button class="btn" data-action="import">Importieren</button>
         </div>
-        <p class="hint">Importieren nimmt eine exportierte Datendatei oder eine Datei mit Kontenplan (und allenfalls Buchungen) für ein Jahr.</p>
+        <p class="hint">Importieren nimmt den Excel-Export einer Banana-Buchhaltung (in Banana: Datei → Datei exportieren → Export in Excel), eine Datei mit Kontenplan und Buchungen eines Geschäftsjahres oder eine exportierte Datendatei der App. Ein Geschäftsjahr aus Banana ersetzt nur dieses Jahr; die anderen Jahre bleiben.</p>
       </section>
     </div>`;
   }
@@ -275,23 +280,38 @@
     const r = await api.importFile();
     if (!r || r.canceled) return;
     if (r.error) { toast(r.error, { fehler: true }); return; }
-    const d = r.data || {};
+    let d = r.data || {};
+    if (r.text != null) {
+      // Excel-Export aus Banana
+      try { d = window.Banana.lesen(r.text); } catch (e) { toast(e.message, { fehler: true }); return; }
+    }
     if (d.typ === 'buchhaltung' || d.typ === 'kontenplan') {
-      // Kontenplan eines Jahres, allenfalls mit Buchungen
+      // Kontenplan eines Geschäftsjahres, allenfalls mit Buchungen
       if (!state.data) { state.data = C.emptyData(); merkeAbbild(); }
       const j = +d.jahr || state.year, neueB = Array.isArray(d.buchungen) ? d.buchungen : [];
       if (!Array.isArray(d.kontenplan) || !d.kontenplan.some((z) => z && z.konto)) { toast('Die Datei enthält keinen Kontenplan.', { fehler: true }); return; }
+      const nKonten = d.kontenplan.filter((z) => z && z.konto).length;
+      const zeitraum = d.von && d.bis ? `${fmtDate(d.von)} bis ${fmtDate(d.bis)}` : '';
+      const ausserhalb = d.von && d.bis ? neueB.filter((b) => b.datum < d.von || b.datum > d.bis).length : 0;
       const alte = state.data.buchungen.filter((b) => b.jahr === j);
-      if ((alte.length || state.data.kontenplaene[j]) && !confirm(`Für ${j} gibt es schon eine Buchhaltung mit ${alte.length} Buchungen. Der Import ersetzt den Kontenplan${neueB.length ? ` und die Buchungen durch ${neueB.length} aus der Datei` : '; die Buchungen bleiben'}. Fortfahren?`)) return;
+      const schonDa = alte.length || state.data.kontenplaene[j];
+      const frage = (r.text != null ? `Banana-Export: Geschäftsjahr ${j}${zeitraum ? ` (${zeitraum})` : ''} mit ${nKonten} Konten und ${neueB.length} Buchungen${d.eroeffnungAusKonten ? ` (davon ${neueB.filter((b) => b.eroeffnung).length} aus den Eröffnungssaldi)` : ''}.` : '')
+        + (ausserhalb ? ` Achtung: ${ausserhalb} Buchungen liegen ausserhalb dieses Zeitraums.` : '')
+        + (d.ohneKonto ? ` ${d.ohneKonto} Zeilen ohne Soll- oder Habenkonto werden übersprungen.` : '')
+        + (schonDa ? ` Für ${j} gibt es schon eine Buchhaltung mit ${alte.length} Buchungen. Der Import ersetzt den Kontenplan${neueB.length ? ` und die Buchungen durch die aus der Datei` : '; die Buchungen bleiben'}. Der bisherige Stand wird vorher gesichert.` : '');
+      if ((r.text != null || schonDa || ausserhalb) && !confirm(`${frage.trim()} Importieren?`)) return;
+      const erstesJahr = !Object.keys(state.data.kontenplaene).length && !state.data.buchungen.length;
       await api.save(state.data, { sicherungErzwingen: true });
-      if (neueB.length) state.data.buchungen = state.data.buchungen.filter((b) => b.jahr !== j).concat(neueB.map((b) => Object.assign({}, b, { jahr: j })));
+      if (neueB.length) state.data.buchungen = state.data.buchungen.filter((b) => b.jahr !== j).concat(neueB.map((b) => Object.assign({}, b, { id: undefined, jahr: j })));
       state.data.kontenplaene[j] = { zeilen: normPlan(d.kontenplan), mod: 0 };
-      if (d.gjBeginn && C.gjBeginn({ gjBeginn: d.gjBeginn }) === d.gjBeginn) state.data.settings.gjBeginn = d.gjBeginn;
-      if (d.firma) state.data.settings.firma = String(d.firma);
+      // Eigener Zeitraum des importierten Geschäftsjahres; Beginn und Name gelten für die ganze App nur beim ersten Import
+      if (d.von && d.bis) Object.assign(state.data.kontenplaene[j], { von: d.von, bis: d.bis });
+      if (erstesJahr && d.gjBeginn && C.gjBeginn({ gjBeginn: d.gjBeginn }) === d.gjBeginn) state.data.settings.gjBeginn = d.gjBeginn;
+      if (erstesJahr && d.firma) state.data.settings.firma = String(d.firma);
       state.data = normalize(state.data);
       await persist();
       state.year = j; state.view = 'buchhaltung'; render();
-      toast(`Buchhaltung ${j}: Kontenplan mit ${d.kontenplan.filter((z) => z && z.konto).length} Konten übernommen${neueB.length ? `, ${neueB.length} Buchungen` : ''}`);
+      toast(`Buchhaltung ${j}: Kontenplan mit ${nKonten} Konten übernommen${neueB.length ? `, ${neueB.length} Buchungen` : ''}`);
       return;
     }
     let neu;

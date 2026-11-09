@@ -21,7 +21,11 @@ In diesem Repository liegen keine Daten.
 Das Geschäftsjahr beginnt am 1. Dezember und trägt die Jahreszahl, in der es endet (Geschäftsjahr 2026 =
 01.12.2025 bis 30.11.2026); der Beginn ist unter Einstellungen änderbar.
 
-Der Kontenplan wird pro Geschäftsjahr als JSON-Datei importiert:
+Ganze Geschäftsjahre lassen sich direkt aus Banana importieren: in Banana «Datei → Datei exportieren → Export in Excel»,
+in der App «Importieren» und die .xls-Datei wählen. Übernommen werden Kontenplan, Buchungen, Zeitraum des Geschäftsjahres
+und Eröffnungssaldi der Kontentabelle (als Eröffnungsbuchungen gegen 2970). Andere Jahre bleiben unverändert.
+
+Alternativ wird der Kontenplan pro Geschäftsjahr als JSON-Datei importiert:
 
     { "typ": "kontenplan", "jahr": 2026, "gjBeginn": "12-01", "kontenplan": [ { "sektion": "", "gruppe": "", "konto": "1010", "text": "Bankkonto GKB", "bklasse": "1", "summe_in": "100" }, … ] }
 

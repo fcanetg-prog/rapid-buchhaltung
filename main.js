@@ -310,12 +310,15 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('data:import', async () => {
       const r = await dialog.showOpenDialog(win, {
         title: 'Daten importieren',
-        filters: [{ name: 'Buchhaltungs-Daten', extensions: ['json'] }],
+        filters: [{ name: 'Banana-Export (Excel) oder Buchhaltungs-Daten', extensions: ['xls', 'xml', 'json'] }],
         properties: ['openFile'],
       });
       if (r.canceled || !r.filePaths[0]) return { canceled: true };
       try {
-        return { data: JSON.parse(fs.readFileSync(r.filePaths[0], 'utf8')), path: r.filePaths[0] };
+        const roh = fs.readFileSync(r.filePaths[0], 'utf8').replace(/^\uFEFF/, '');
+        // Banana-Export (Excel 2003 XML) liest das Fenster selbst; alles andere ist JSON.
+        if (/^\s*</.test(roh)) return { text: roh, path: r.filePaths[0] };
+        return { data: JSON.parse(roh), path: r.filePaths[0] };
       } catch (err) {
         return { error: `Die Datei konnte nicht gelesen werden: ${err.message}` };
       }
