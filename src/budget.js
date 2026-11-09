@@ -176,7 +176,7 @@
           ${total('Total Einnahmen', z.ertrag, 'ertrag')}
           <tr class="bg-total bg-ueber"><td colspan="2">Überschuss</td>${ue}</tr>
         </tbody></table>
-        <p class="hint">Tatsächliche Zahlen kommen aus der Buchhaltung des jeweiligen Geschäftsjahres und sind immer aktuell; ein Klick darauf zeigt den Kontoauszug.${hand.length ? ` Die Zahlen für ${hand.join(', ')} sind fix aus dem Excel übernommen (kursiv).` : ''} Differenz = tatsächlich − Budget. <span class="bg-legende gut">grün</span> besser als budgetiert (weniger ausgegeben oder mehr eingenommen), <span class="bg-legende schlecht">rot</span> schlechter (mehr ausgegeben oder weniger eingenommen).</p>
+        <p class="hint">Tatsächliche Zahlen kommen aus der Buchhaltung des jeweiligen Geschäftsjahres und sind immer aktuell; ein Klick darauf zeigt den Kontoauszug.${hand.length ? ` Die Zahlen für ${hand.join(', ')} sind fix aus dem Excel übernommen.` : ''} Differenz = tatsächlich − Budget. <span class="bg-legende gut">grün</span> besser als budgetiert (weniger ausgegeben oder mehr eingenommen), <span class="bg-legende schlecht">rot</span> schlechter (mehr ausgegeben oder weniger eingenommen).</p>
       </div>`;
     }
 
@@ -275,7 +275,6 @@
         td.r { width: 50pt; }
         .js { border-left: 1px solid #9aa; }
         .tat { background: #f1f6f6; }
-        .hand { font-style: italic; }
         tr.abschnitt td { font-size: 10pt; height: 16pt; vertical-align: bottom; padding-bottom: 2pt; }
         tr.abschnitt.zweiter td { height: 26pt; }
         tr.ueber td { font-size: 9.5pt; height: 17pt; }
@@ -298,7 +297,7 @@
           ${total('Total Einnahmen', z.ertrag, 'ertrag')}
           <tr class="total ueber"><td colspan="2">Überschuss</td>${spalten.map((sp) => zelle(sp, ueber(sp), 'ertrag')).join('')}</tr>
         </tbody></table>
-        <div class="fuss">Differenz = tatsächlich − Budget: <span class="lg gut" style="background:#cdebd8;color:#135c33">grün</span> besser als budgetiert (weniger ausgegeben oder mehr eingenommen), <span class="lg" style="background:#f7d0c8;color:#9b2412">rot</span> schlechter. Tatsächliche Zahlen aus der Buchhaltung${hand.length ? `; ${hand.join(', ')} aus dem Excel (kursiv)` : ''}.</div>
+        <div class="fuss">Differenz = tatsächlich − Budget: <span class="lg gut" style="background:#cdebd8;color:#135c33">grün</span> besser als budgetiert (weniger ausgegeben oder mehr eingenommen), <span class="lg" style="background:#f7d0c8;color:#9b2412">rot</span> schlechter. Tatsächliche Zahlen aus der Buchhaltung${hand.length ? `; ${hand.join(', ')} aus dem Excel` : ''}.</div>
       </body></html>`;
     }
 

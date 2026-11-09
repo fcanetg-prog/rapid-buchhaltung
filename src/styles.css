@@ -19,6 +19,8 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
+/* In dieser App wird nie kursiv geschrieben. */
+i, em, cite, var, dfn, address { font-style: normal; }
 body {
   font: 14px/1.45 var(--font);
   color: var(--ink);
@@ -993,7 +995,7 @@ select.bu-stand.an { border-color: #d9b44a; background: #fffbe8; color: #7a5a00;
 .bu-fk.bu-fk-off { background: #fff4c7; border-color: #e6cf7a; }
 /* In der App ist nichts kursiv (ausser was in Notizen ausdrücklich so formatiert ist) */
 i, em, cite, dfn, address, var { font-style: normal; }
-.pd-rich i, .pd-rich em { font-style: italic; }
+.pd-rich i, .pd-rich em { font-style: normal; }
 /* Budget: Schalter 0 % MWST am linken Rand der Spalte inkl. MWST */
 .list.bu td.bu-inkl { position: relative; }
 .bu-null { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); font-size: 10px; line-height: 15px; padding: 0 5px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--muted); cursor: pointer; opacity: .35; font-variant-numeric: tabular-nums; }
@@ -1034,7 +1036,6 @@ tr.bu-z:hover .bu-null, .bu-null:focus { opacity: 1; }
 /* Jahre voneinander abgesetzt; tatsächliche Zahlen leicht hinterlegt */
 .bg-tab .jahr-start { border-left: 1px solid var(--line); }
 .bg-tab .tat { background: rgba(var(--teal-rgb), .05); }
-.bg-tab .hand { font-style: italic; color: var(--muted); }
 .bg-tab td.tat[data-bu] { cursor: pointer; }
 .bg-tab td.tat[data-bu]:hover { text-decoration: underline; color: var(--teal-deep); }
 /* Differenzen: grün = besser als budgetiert, rot = schlechter */
