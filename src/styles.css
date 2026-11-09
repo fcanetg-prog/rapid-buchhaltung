@@ -1012,7 +1012,7 @@ tr.bu-z:hover .bu-null, .bu-null:focus { opacity: 1; }
 .view-budget .bg-wrap { padding: 6px 0 14px; overflow-x: auto; }
 .view-budget .bg-wrap .hint { margin: 12px 18px 0; }
 .bg-alle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; }
-.bg-tab { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 12px; }
+.bg-tab { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 11.5px; }
 /* Alle Zeilen gleich hoch und immer einzeilig */
 .bg-tab th, .bg-tab td { white-space: nowrap; }
 .bg-tab th { padding: 6px 5px 5px; border-bottom: 1px solid var(--line); font-size: 11.5px; }
@@ -1026,8 +1026,8 @@ tr.bu-z:hover .bu-null, .bu-null:focus { opacity: 1; }
 .bg-tab td.t { min-width: 170px; max-width: 0; width: 100%; }
 .bg-tab input.inline { height: 22px; line-height: 20px; padding: 0 6px; margin: 0; }
 .bg-tab input.bg-text { width: 100%; text-overflow: ellipsis; }
-.bg-tab td.ein { width: 88px; padding-right: 2px; }
-.bg-tab input.bg-betrag { width: 82px; text-align: right; font-variant-numeric: tabular-nums; border-color: var(--line); background: #fbfdfd; }
+.bg-tab td.ein { width: 80px; padding-right: 2px; }
+.bg-tab input.bg-betrag { width: 76px; text-align: right; font-variant-numeric: tabular-nums; border-color: var(--line); background: #fbfdfd; }
 .bg-tab input.bg-betrag:focus, .bg-tab input.bg-text:focus { border-color: var(--teal); background: var(--surface); outline: none; }
 /* Leerzeile zwischen den Gruppen: gleich hoch, deutlich sichtbar */
 .bg-tab tr.bg-leer td { background: #dfeaea; border-top: 1px solid #c9dada; border-bottom: 1px solid #c9dada; }
@@ -1038,8 +1038,10 @@ tr.bu-z:hover .bu-null, .bu-null:focus { opacity: 1; }
 .bg-tab .hand { font-style: italic; color: var(--muted); }
 .bg-tab td.tat[data-bu] { cursor: pointer; }
 .bg-tab td.tat[data-bu]:hover { text-decoration: underline; color: var(--teal-deep); }
-.bg-tab td.neg { color: var(--red); }
-.bg-tab td.pos { color: var(--green); }
+/* Differenzen: grün = besser als budgetiert, rot = schlechter */
+.bg-tab td.gut, .bg-legende.gut { background: #d3eedd; color: #135c33; font-weight: 600; }
+.bg-tab td.schlecht, .bg-legende.schlecht { background: #f9d6ce; color: #9b2412; font-weight: 600; }
+.bg-legende { padding: 1px 6px; border-radius: 3px; }
 .bg-tab tr.bg-abschnitt td { font-weight: 600; color: var(--teal-deep); font-size: 13px; border-bottom: 1px solid var(--line); }
 .bg-tab tr.bg-total td { font-weight: 600; border-top: 1px solid var(--ink); border-bottom: 0; }
 .bg-tab tr.bg-ueber td { font-size: 13px; border-top: 2px solid var(--ink); }

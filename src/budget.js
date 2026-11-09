@@ -46,14 +46,8 @@
       return { werte: new Map(hand.map(([k, p]) => [k, p.ist])), quelle: 'hand' };
     }
 
-    /** Vorjahre mit Budget oder tatsächlichen Zahlen (höchstens drei), jüngstes zuerst. */
-    function vorjahre() {
-      const out = [];
-      for (let j = jahr() - 1; j >= jahr() - 3; j--) {
-        if (Object.values(posten(j)).some((p) => p.intern != null) || tatsaechlich(j)) out.push(j);
-      }
-      return out;
-    }
+    /** Immer die drei Vorjahre, jüngstes zuerst; Jahre ohne Daten bleiben leer, sehen aber gleich aus. */
+    const vorjahre = () => [jahr() - 1, jahr() - 2, jahr() - 3];
 
     /**
      * Budgetzeilen: Konten der Erfolgsrechnung (Aufwand, dann Ertrag), gruppiert nach den ersten zwei Ziffern.
@@ -99,7 +93,7 @@
       const spalten = [];
       for (const x of jahre) {
         spalten.push({ art: 'budget', jahr: x, kopf: `Budget ${x}`, eingabe: x === j });
-        spalten.push({ art: 'tat', jahr: x, kopf: `Tatsächlich ${x}${x === j ? ' bisher' : ''}`, quelle: tatJe[x] && tatJe[x].quelle });
+        spalten.push({ art: 'tat', jahr: x, kopf: `Tatsächlich ${x}`, quelle: tatJe[x] && tatJe[x].quelle });
         spalten.push({ art: 'diff', jahr: x, kopf: `Differenz ${x}` });
       }
       const wert = (sp, k) => {
@@ -115,7 +109,7 @@
       };
       const ueber = (sp) => { const e = summe(sp, z.ertrag), a = summe(sp, z.aufwand); return e == null && a == null ? null : (e || 0) - (a || 0); };
       // Rot: mehr Aufwand oder weniger Ertrag als budgetiert
-      const klasse = (sp, v, art) => (sp.art === 'diff' && v != null && Math.abs(v) >= 0.5 ? ((art === 'aufwand' ? v > 0 : v < 0) ? 'neg' : 'pos') : '');
+      const klasse = (sp, v, art) => (sp.art === 'diff' && v != null && Math.abs(v) >= 0.5 ? ((art === 'aufwand' ? v > 0 : v < 0) ? 'schlecht' : 'gut') : '');
       return { j, jahre, tatJe, z, spalten, wert, summe, ueber, klasse };
     }
 
@@ -161,12 +155,12 @@
       };
       const zeile = (r) => `<tr><td class="k">${esc(r.konto)}</td><td class="t">${textFeld(r)}</td>${spalten.map((sp) => zelle(sp, r)).join('')}</tr>`;
       const total = (titel, liste, art) => `<tr class="bg-total"><td colspan="2">${titel}</td>${spalten.map((sp) => { const v = summe(sp, liste); return `<td class="r ${kl(sp)} ${klasse(sp, v, art)}">${chf(v)}</td>`; }).join('')}</tr>`;
-      const ue = spalten.map((sp) => { const v = ueber(sp); return `<td class="r ${kl(sp)} ${sp.art === 'diff' && v != null && Math.abs(v) >= 0.5 ? (v < 0 ? 'neg' : 'pos') : ''}">${chf(v)}</td>`; }).join('');
+      const ue = spalten.map((sp) => { const v = ueber(sp); return `<td class="r ${kl(sp)} ${klasse(sp, v, 'ertrag')}">${chf(v)}</td>`; }).join('');
       const hand = spalten.filter((sp) => sp.art === 'tat' && sp.quelle === 'hand').map((sp) => sp.jahr);
       return `<div class="sec bg-wrap"><table class="bg-tab">
         <thead>
           <tr class="bg-jahre"><th colspan="2"></th>${m.jahre.map((x) => `<th colspan="3" class="c jahr-start ${x === j ? 'akt' : ''}">${x}${x === j ? ' (laufend)' : ''}</th>`).join('')}</tr>
-          <tr><th>Konto</th><th>Posten</th>${spalten.map((sp) => `<th class="r ${kl(sp)}">${{ budget: 'Budget', tat: sp.jahr === j ? 'Tatsächlich bisher' : 'Tatsächlich', diff: 'Differenz' }[sp.art]}</th>`).join('')}</tr>
+          <tr><th>Konto</th><th>Posten</th>${spalten.map((sp) => `<th class="r ${kl(sp)}">${{ budget: 'Budget', tat: 'Tatsächlich', diff: 'Differenz' }[sp.art]}</th>`).join('')}</tr>
         </thead>
         <tbody>
           <tr class="bg-abschnitt"><td colspan="${breite}">Ausgaben</td></tr>
@@ -177,7 +171,7 @@
           ${total('Total Einnahmen', z.ertrag, 'ertrag')}
           <tr class="bg-total bg-ueber"><td colspan="2">Überschuss</td>${ue}</tr>
         </tbody></table>
-        <p class="hint">Tatsächliche Zahlen kommen aus der Buchhaltung des jeweiligen Geschäftsjahres und sind immer aktuell; ein Klick darauf zeigt den Kontoauszug.${hand.length ? ` Für ${hand.join(', ')} gibt es in der App keine Buchhaltung; diese Zahlen stammen aus dem Excel (kursiv) und werden ersetzt, sobald das Jahr importiert ist.` : ''} Differenz = tatsächlich − Budget; rot heisst mehr ausgegeben oder weniger eingenommen als budgetiert.</p>
+        <p class="hint">Tatsächliche Zahlen kommen aus der Buchhaltung des jeweiligen Geschäftsjahres und sind immer aktuell; ein Klick darauf zeigt den Kontoauszug.${hand.length ? ` Für ${hand.join(', ')} gibt es in der App keine Buchhaltung; diese Zahlen stammen aus dem Excel (kursiv) und werden ersetzt, sobald das Jahr importiert ist.` : ''} Differenz = tatsächlich − Budget. <span class="bg-legende gut">grün</span> besser als budgetiert (weniger ausgegeben oder mehr eingenommen), <span class="bg-legende schlecht">rot</span> schlechter (mehr ausgegeben oder weniger eingenommen).</p>
       </div>`;
     }
 
@@ -255,11 +249,12 @@
 
     /** Internes Budget mit allen Spalten, A4 quer, kleine Schrift, möglichst auf einer Seite. */
     function pdfIntern() {
-      const { j, spalten, wert, summe, ueber, z } = modellIntern();
+      const { j, jahre, spalten, wert, summe, ueber, klasse, z } = modellIntern();
       const breite = spalten.length + 2;
       const kl = (sp) => `${sp.art === 'budget' ? 'js' : ''} ${sp.art === 'tat' ? 'tat' : ''} ${sp.quelle === 'hand' ? 'hand' : ''}`;
-      const zeile = (r) => `<tr><td class="k">${esc(r.konto)}</td><td class="t">${esc(r.text)}</td>${spalten.map((sp) => `<td class="r ${kl(sp)}">${chf(wert(sp, r.konto))}</td>`).join('')}</tr>`;
-      const total = (titel, liste) => `<tr class="total"><td colspan="2">${titel}</td>${spalten.map((sp) => `<td class="r ${kl(sp)}">${chf(summe(sp, liste))}</td>`).join('')}</tr>`;
+      const zelle = (sp, v, art) => `<td class="r ${kl(sp)} ${klasse(sp, v, art)}">${chf(v)}</td>`;
+      const zeile = (r) => `<tr><td class="k">${esc(r.konto)}</td><td class="t">${esc(r.text)}</td>${spalten.map((sp) => zelle(sp, wert(sp, r.konto), r.art)).join('')}</tr>`;
+      const total = (titel, liste, art) => `<tr class="total"><td colspan="2">${titel}</td>${spalten.map((sp) => zelle(sp, summe(sp, liste), art)).join('')}</tr>`;
       const hand = spalten.filter((sp) => sp.art === 'tat' && sp.quelle === 'hand').map((sp) => sp.jahr);
       const titel = `Budget ${firma()} ${j} intern`;
       return `<!doctype html><html lang="de-CH"><head><meta charset="utf-8"><title>${esc(titel)}</title><style>${pdfStil}
@@ -278,17 +273,25 @@
         tr.abschnitt td { font-size: 8pt; height: 13pt; vertical-align: bottom; padding-bottom: 1.5pt; }
         tr.ueber td { font-size: 8pt; height: 13pt; }
         .fuss { font-size: 6.5pt; color: #555; margin-top: 5pt; white-space: nowrap; }
+        tr.jahre th { font-size: 8pt; font-weight: bold; color: #000; border-bottom: 0; text-align: center; }
+        .c { text-align: center; }
+        td.gut { background: #cdebd8; color: #135c33; font-weight: bold; }
+        td.schlecht { background: #f7d0c8; color: #9b2412; font-weight: bold; }
+        .lg { padding: 0 3pt; font-weight: bold; }
       </style></head><body>
         <h1>${esc(titel)}</h1>
         <div class="sub">Geschäftsjahr ${C.zeitraum(state.data, j).text} · Stand ${fmtDate(heute)} · Beträge in CHF</div>
-        <table><thead><tr><th>Konto</th><th>Posten</th>${spalten.map((sp) => `<th class="r ${kl(sp)}">${sp.kopf}</th>`).join('')}</tr></thead><tbody>
+        <table><thead>
+          <tr class="jahre"><th colspan="2"></th>${jahre.map((x) => `<th colspan="3" class="c js">${x}${x === j ? ' (laufend)' : ''}</th>`).join('')}</tr>
+          <tr><th>Konto</th><th>Posten</th>${spalten.map((sp) => `<th class="r ${kl(sp)}">${{ budget: 'Budget', tat: 'Tatsächlich', diff: 'Differenz' }[sp.art]}</th>`).join('')}</tr>
+        </thead><tbody>
           <tr class="abschnitt"><td colspan="${breite}">Ausgaben</td></tr>${abschnitt(z.aufwand, breite, zeile).replace(/bg-leer/g, 'leer')}
-          ${total('Total Ausgaben', z.aufwand)}
+          ${total('Total Ausgaben', z.aufwand, 'aufwand')}
           <tr class="abschnitt"><td colspan="${breite}">Einnahmen</td></tr>${abschnitt(z.ertrag, breite, zeile).replace(/bg-leer/g, 'leer')}
-          ${total('Total Einnahmen', z.ertrag)}
-          <tr class="total ueber"><td colspan="2">Überschuss</td>${spalten.map((sp) => `<td class="r ${kl(sp)}">${chf(ueber(sp))}</td>`).join('')}</tr>
+          ${total('Total Einnahmen', z.ertrag, 'ertrag')}
+          <tr class="total ueber"><td colspan="2">Überschuss</td>${spalten.map((sp) => zelle(sp, ueber(sp), 'ertrag')).join('')}</tr>
         </tbody></table>
-        <div class="fuss">Differenz = tatsächlich − Budget. Tatsächliche Zahlen aus der Buchhaltung${hand.length ? `; ${hand.join(', ')} aus dem Excel (kursiv)` : ''}.</div>
+        <div class="fuss">Differenz = tatsächlich − Budget: <span class="lg gut" style="background:#cdebd8;color:#135c33">grün</span> besser als budgetiert (weniger ausgegeben oder mehr eingenommen), <span class="lg" style="background:#f7d0c8;color:#9b2412">rot</span> schlechter. Tatsächliche Zahlen aus der Buchhaltung${hand.length ? `; ${hand.join(', ')} aus dem Excel (kursiv)` : ''}.</div>
       </body></html>`;
     }
 
