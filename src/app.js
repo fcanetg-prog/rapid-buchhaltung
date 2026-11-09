@@ -217,7 +217,7 @@
     const firma = String(state.data.settings.firma || '').trim() || 'Rapid Openair';
     $('#app').innerHTML = `
       <nav class="side">
-        <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="6" y="4.5" width="20" height="23" rx="2.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M11 11h10M11 16h10M11 21h6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="7" fill="#c81e26"/><text x="16" y="23.6" text-anchor="middle" font-size="21.5" font-weight="800" fill="#fff" font-family="Inter, 'Segoe UI', Arial, sans-serif">R</text></svg>
           <div><strong>Buchhaltung</strong><span>${esc(firma)}</span></div></div>
         <div class="navlist">${NAV.map(([k, l]) => `<button class="nav ${state.view === k ? 'on' : ''}" data-action="nav" data-view="${k}">${l}</button>`).join('')}</div>
         <label class="yearpick">Jahr
